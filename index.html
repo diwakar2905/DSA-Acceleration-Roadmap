@@ -1,0 +1,1610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DSA Accelerator Schedule</title>
+    <link rel="manifest" href="/manifest.json"> <!-- PWA Manifest -->
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Use Inter Font -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f7f9; 
+        }
+        .current-day {
+            /* Prominent highlight for today (Emerald Green) */
+            border-color: #10b981; 
+            box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.5); 
+            transform: translateY(-1px);
+        }
+        /* Ensure the progress bar starts at 0 height to prevent CLS */
+        .progress-bar-inner {
+            transition: width 0.5s ease-in-out;
+            height: 100%;
+        }
+        /* Style for the SVG Progress Ring */
+        .progress-ring-arc {
+            transition: stroke-dashoffset 0.5s ease-in-out;
+            stroke-linecap: round;
+        }
+        .toggle-active {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+
+    <!-- Header and Dashboard Container (No longer sticky) -->
+    <div class="bg-[#f7f7f9] shadow-lg pb-4">
+        <!-- Header -->
+        <div class="max-w-4xl mx-auto p-4 md:p-0">
+            <header class="text-center mb-4 p-6 bg-gradient-to-r from-blue-700 to-indigo-800 shadow-xl rounded-xl text-white">
+                <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight">DSA Acceleration Roadmap</h1>
+                <p class="mt-1 text-lg font-light opacity-90 hidden md:block">Your personalized, daily DSA roadmap.</p>
+                <!-- Updated user ID display for local mode -->
+                <p class="mt-2 text-xs opacity-60">Status: <span id="user-id" class="font-mono text-xs">Loading...</span></p>
+                
+                <!-- Language Toggle (NEW) -->
+                <div class="mt-4 flex justify-center">
+                    <div id="language-toggle" class="flex p-1 bg-indigo-700 rounded-xl shadow-inner text-sm font-semibold">
+                        <button data-lang="cpp" onclick="window.switchLanguage('cpp')" class="toggle-active px-5 py-2 rounded-lg transition duration-200 text-white bg-indigo-500 hover:bg-indigo-400">
+                            C++ DSA
+                        </button>
+                        <button data-lang="java" onclick="window.switchLanguage('java')" class="px-5 py-2 rounded-lg transition duration-200 text-indigo-200 hover:text-white hover:bg-indigo-600">
+                            Java DSA
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Control Buttons -->
+                <div class="mt-4 flex flex-col md:flex-row justify-center space-y-2 md:space-y-0 md:space-x-3 text-sm">
+                    <button id="customize-btn" onclick="window.showCustomizeModal()" class="px-5 py-2 bg-yellow-400 text-gray-900 font-bold rounded-lg shadow-md hover:bg-yellow-500 transition duration-300">
+                        Customize Schedule
+                    </button>
+                    <button id="download-report-btn" onclick="window.downloadReport()" class="px-5 py-2 bg-white text-indigo-700 font-bold rounded-lg shadow-md hover:bg-gray-100 transition duration-300">
+                        Download Report
+                    </button>
+                    <button id="reset-progress-btn" onclick="window.showResetModal()" class="px-5 py-2 bg-red-500 text-white font-bold rounded-lg shadow-md hover:bg-red-600 transition duration-300">
+                        Reset Progress
+                    </button>
+                </div>
+            </header>
+        </div>
+
+        <!-- Progress Dashboard -->
+        <section id="dashboard" class="max-w-4xl mx-auto grid grid-cols-3 gap-4 px-4">
+            <!-- Total Progress with Progress Ring (New Visual) -->
+            <div class="bg-white p-4 rounded-xl shadow-xl border-t-4 border-indigo-500 text-center flex items-center justify-between">
+                <div class="text-left flex-1">
+                    <p class="text-xs font-semibold uppercase text-gray-500">Overall Progress</p>
+                    <p id="total-progress-text" class="text-2xl font-extrabold text-indigo-700 mt-1">0%</p>
+                    <p id="total-progress-count" class="text-sm text-gray-500 mt-1">0/0 Tasks</p>
+                </div>
+                <!-- SVG Progress Ring -->
+                <svg width="60" height="60" viewBox="0 0 100 100" class="flex-shrink-0">
+                    <!-- Background Track -->
+                    <circle cx="50" cy="50" r="45" fill="none" stroke="#e0e7ff" stroke-width="10"/>
+                    <!-- Progress Arc -->
+                    <circle cx="50" cy="50" r="45" fill="none" stroke="#4f46e5" stroke-width="10"
+                            stroke-dasharray="282.7" stroke-dashoffset="282.7"
+                            transform="rotate(-90 50 50)" id="progress-ring-arc" class="progress-ring-arc"/>
+                </svg>
+            </div>
+            <!-- Current Streak -->
+            <div class="bg-white p-4 rounded-xl shadow-xl border-t-4 border-emerald-500 text-center">
+                <p class="text-xs font-semibold uppercase text-gray-500">Current Streak</p>
+                <p id="current-streak" class="text-4xl font-extrabold text-emerald-700 mt-1">0</p>
+                <p class="text-sm text-gray-500 mt-1">Days</p>
+            </div>
+            <!-- Days Scheduled -->
+            <div class="bg-white p-4 rounded-xl shadow-xl border-t-4 border-blue-500 text-center">
+                <p class="text-xs font-semibold uppercase text-gray-500">Total Roadmap</p>
+                <!-- NOTE: This is dynamically updated by JS, 74 is just a visual default -->
+                <p id="days-scheduled" class="text-4xl font-extrabold text-blue-700 mt-1">74</p> 
+                <p class="text-sm text-gray-500 mt-1">Days Planned</p>
+            </div>
+        </section>
+    </div>
+    
+    <!-- Main Content -->
+    <div id="app" class="max-w-4xl mx-auto pt-4">
+
+        <!-- Loading & Error Status -->
+        <div id="status-message" class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-6 hidden rounded-lg" role="alert">
+            <p class="font-bold">Loading Data...</p>
+            <p id="status-text">Connecting to the database and loading your progress.</p>
+        </div>
+
+        <!-- Schedule List -->
+        <div id="schedule-list" class="space-y-6">
+            <!-- Schedule items will be dynamically injected here -->
+        </div>
+
+    </div>
+
+    <!-- 1. Reset Confirmation Modal -->
+    <div id="reset-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full">
+            <h3 class="text-xl font-bold text-red-600 mb-4">Confirm Reset</h3>
+            <p class="text-gray-700 mb-6">Are you sure you want to reset all your DSA progress? This action cannot be undone.</p>
+            <div class="flex justify-end space-x-3">
+                <button onclick="window.hideResetModal()" class="px-4 py-2 bg-gray-200 text-gray-800 font-medium rounded-lg hover:bg-gray-300 transition">
+                    Cancel
+                </button>
+                <button onclick="window.resetProgress()" class="px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition">
+                    Yes, Reset
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 2. Customize Schedule Modal -->
+    <div id="customize-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white p-8 rounded-2xl shadow-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6 border-b pb-3">
+                <h3 class="text-2xl font-extrabold text-indigo-700">Customize DSA Schedule (Max 15 Days)</h3>
+                <button onclick="window.hideCustomizeModal()" class="text-gray-500 hover:text-gray-800 text-2xl font-bold">&times;</button>
+            </div>
+
+            <p class="text-sm text-gray-600 mb-4">You can override or extend the schedule from Day 15 onwards. **Note:** Only the structure is saved; task completion status is separate. You can edit up to 15 days at a time.</p>
+            
+            <form id="schedule-form" onsubmit="window.saveCustomSchedule(event)">
+                <div id="days-container" class="space-y-6">
+                    <!-- Custom day fields will be inserted here -->
+                </div>
+                
+                <div class="flex justify-between items-center mt-6 pt-4 border-t">
+                    <div>
+                        <button type="button" id="add-day-btn" onclick="window.addDaySection()" class="px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition duration-200 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+                            Add New Day
+                        </button>
+                        <p id="customize-limit-message" class="text-xs text-red-500 mt-2 hidden">Maximum limit reached. Save to continue adding more days.</p>
+                    </div>
+                    <button type="submit" class="px-6 py-3 bg-emerald-500 text-white font-bold rounded-lg shadow-md hover:bg-emerald-600 transition duration-200">
+                        Save Custom Schedule
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- Local Storage Scripting (Replaced Firebase) -->
+    <script>
+        // Local Storage Keys
+        const LOCAL_PROGRESS_KEY = 'dsa_tracker_progress';
+        const LOCAL_CUSTOM_SCHEDULE_KEY = 'dsa_tracker_custom';
+        const LOCAL_START_DATE_KEY = 'dsa_tracker_start_date'; // NEW: Key for storing the start date
+
+        let schedule_cpp = []; // Store C++ schedule
+        let schedule_java = []; // Store Java schedule
+        let customSchedule = [];
+        let mergedSchedule = [];
+        let currentLanguage = 'cpp'; // Default language state (NEW)
+        let startDateStr; // NEW: This will hold the dynamically determined start date
+        const MAX_CUSTOM_DAYS = 15; // Max days allowed in the customization tool at once.
+        const CIRCUMFERENCE = 2 * Math.PI * 45; // Circumference for SVG ring with r=45
+
+        // --- Core DSA Schedule Data (Days 1-74) ---
+        
+        // C++ Schedule Data (Customized Days 1-8 provided by user)
+        const DEFAULT_SCHEDULE_CPP = [
+            { day: 1, title: "C++ Introduction & Input/Output", note: "", tasks: [
+                { desc: "C++ Basics, Variables & Input/Output", type: "Video", link: "https://www.youtube.com/watch?v=ntV8daLVv8M", resource: "Shradha Khapra" },
+                { desc: "Introduction to C++, Input/Output, Variables", type: "Video", link: "https://www.youtube.com/watch?v=UZC7HJiG5Bs", resource: "Apna College" },
+                { desc: "C++ Introduction", type: "Article", link: "https://www.geeksforgeeks.org/c-plus-plus/", resource: "GFG" },
+                { desc: "Print Hello World", type: "Easy Problem", link: "https://www.geeksforgeeks.org/c-program-hello-world/", resource: "GFG" },
+            ]},
+            { day: 2, title: "Data Types, Operators & Flow Control", note: "", tasks: [
+                { desc: "Data Types and Operators", type: "Video", link: "https://www.youtube.com/watch?v=FvOC5f0fBzY", resource: "Apna College" },
+                { desc: "Conditional Statements & Loops", type: "Video", link: "https://www.youtube.com/watch?v=qR9U6bKxJ7g", resource: "Shradha Khapra" },
+                { desc: "C++ Data Types", type: "Article", link: "https://www.geeksforgeeks.org/data-types-in-c/", resource: "GFG" },
+                { desc: "Check Even/Odd", type: "Easy Problem", link: "https://www.geeksforgeeks.org/c-program-to-check-even-or-odd/", resource: "GFG" },
+            ]},
+            { day: 3, title: "Functions in C++", note: "", tasks: [
+                { desc: "Functions Basics C++", type: "Video", link: "https://www.youtube.com/watch?v=P08Z_NC8GuY", resource: "Shradha Khapra" },
+                { desc: "Functions in C++", type: "Video", link: "https://www.youtube.com/watch?v=83KtncYgHYQ", resource: "Apna College" },
+                { desc: "Functions in C++", type: "Article", link: "https://www.geeksforgeeks.org/functions-in-cpp/", resource: "GFG" },
+                { desc: "Factorial Using Functions", type: "Easy Problem", link: "https://www.geeksforgeeks.org/c-program-factorial-of-a-number/", resource: "GFG" },
+            ]},
+            { day: 4, title: "Arrays Basics", note: "", tasks: [
+                { desc: "Introduction to Arrays in C++", type: "Video", link: "https://www.youtube.com/watch?v=PyTK_g1l8V8", resource: "Apna College" },
+                { desc: "Arrays & Memory", type: "Video", link: "https://www.youtube.com/watch?v=a6pglbP1A4w", resource: "Shradha Khapra" },
+                { desc: "Arrays in C++", type: "Article", link: "https://www.geeksforgeeks.org/cpp/learn-dsa-in-cpp/", resource: "GFG" },
+                { desc: "Print Alternate Elements", type: "Easy Problem", link: "https://www.geeksforgeeks.org/print-alternate-elements-of-an-array/", resource: "GFG" },
+            ]},
+            { day: 5, title: "More Arrays & Searching", note: "", tasks: [
+                { desc: "Arrays Operations & Loops", type: "Video", link: "https://www.youtube.com/watch?v=JUrGoKZqEbo", resource: "Apna College" },
+                { desc: "Linear Search in Array", type: "Video", link: "https://www.youtube.com/watch?v=_l_7t7SIhTg", resource: "CodeHelp by Babbar" },
+                { desc: "Array Searching", type: "Article", link: "https://www.geeksforgeeks.org/array-data-structure/", resource: "GFG" },
+                { desc: "Find Largest Element", type: "Easy Problem", link: "https://www.geeksforgeeks.org/find-largest-element-in-an-array/", resource: "GFG" },
+            ]},
+            { day: 6, title: "Sorting - Bubble & Selection", note: "", tasks: [
+                { desc: "Bubble Sort", type: "Video", link: "https://www.youtube.com/watch?v=p__ETf2CKY4", resource: "Abdul Bari" },
+                { desc: "Selection Sort", type: "Video", link: "https://www.youtube.com/watch?v=hh__tKkvivc", resource: "CodeHelp by Babbar" },
+                { desc: "C++ Sorting Algorithms", type: "Article", link: "https://www.geeksforgeeks.org/sorting-algorithms/", resource: "GFG" },
+                { desc: "Sort Array", type: "Easy Problem", link: "https://www.geeksforgeeks.org/cpp-program-to-sort-an-array-in-ascending-order/", resource: "GFG" },
+            ]},
+            { day: 7, title: "Strings in C++", note: "", tasks: [
+                { desc: "Strings & Character Arrays", type: "Video", link: "https://www.youtube.com/watch?v=MOSjYaVymcU", resource: "Apna College" },
+                { desc: "String Functions Explained", type: "Video", link: "https://www.youtube.com/watch?v=mJdJtu-_IqY", resource: "Programming Horizons" },
+                { desc: "Strings in C++", type: "Article", link: "https://www.geeksforgeeks.org/cpp-strings/", resource: "GFG" },
+                { desc: "Reverse String", type: "Easy Problem", link: "https://www.geeksforgeeks.org/reverse-string/", resource: "GFG" },
+            ]},
+            { day: 8, title: "Functions, Recursion Basics", note: "", tasks: [
+                { desc: "Recursion Introduction & Identification", type: "Video", link: "https://www.youtube.com/watch?v=kHi1DUhp9kM", resource: "Aditya Verma" },
+                { desc: "Permutations of Strings, Simple Recursion", type: "Video", link: "https://www.youtube.com/watch?v=zC4D7cuaYzo", resource: "Aditya Verma" },
+                { desc: "Recursion in C++", type: "Article", link: "https://www.geeksforgeeks.org/recursion/", resource: "GFG" },
+                { desc: "Factorial via Recursion", type: "Easy Problem", link: "https://www.geeksforgeeks.org/program-for-factorial-of-a-number/", resource: "GFG" },
+                { desc: "Print 1 to N Without Loop", type: "Easy Problem", link: "https://www.geeksforgeeks.org/print-numbers-from-1-to-n-without-using-any-loop/", resource: "GFG" },
+            ]},
+            { day: 9, title: "Pointers in C++", note: "", tasks: [
+                { desc: "Pointers in C++ In Detail", type: "Video", link: "https://www.youtube.com/watch?v=qYEjR6M0wSk", resource: "Shradha Khapra" },
+                { desc: "Pointers", type: "Video", link: "https://www.youtube.com/watch?v=gHxmAgedyDk", resource: "Apna College" },
+                { desc: "Pointers in C++", type: "Article", link: "https://www.geeksforgeeks.org/pointers-in-cpp/", resource: "GFG" },
+                { desc: "Swap Two Numbers Using Pointers", type: "Easy Problem", link: "https://www.geeksforgeeks.org/write-a-function-to-swap-two-numbers-in-c/", resource: "GFG" },
+            ]},
+            { day: 10, title: "C++ STL Introduction", note: "", tasks: [
+                { desc: "STL in One Video", type: "Video", link: "https://www.youtube.com/watch?v=okhdtEk1iKk", resource: "Apna College" },
+                { desc: "Love Babbar STL Complete Guide", type: "Video", link: "https://www.youtube.com/watch?v=WgMPrLX-zsA", resource: "Love Babbar" },
+                { desc: "C++ STL Library", type: "Article", link: "https://www.geeksforgeeks.org/the-c-standard-template-library-stl/", resource: "GFG" },
+                { desc: "Use Map to Count Array Frequency", type: "Easy Problem", link: "https://www.geeksforgeeks.org/count-occurrences-elements-array/", resource: "GFG" },
+            ]},
+            { day: 11, title: "Conditional Statements & Loops Deep Dive", note: "", tasks: [
+                { desc: "Conditional Statements & Loops Explained", type: "Video", link: "https://www.youtube.com/watch?v=qR9U6bKxJ7g", resource: "Apna College" },
+                { desc: "If/Else Statement in C++", type: "Video", link: "https://www.youtube.com/watch?v=cyB3HNlQyjY", resource: "Shradha Khapra" },
+                { desc: "Control Structures in C++", type: "Article", link: "https://www.geeksforgeeks.org/decision-making-c-c-else-nested-else/", resource: "GFG" },
+                { desc: "Check Leap Year", type: "Easy Problem", link: "https://www.geeksforgeeks.org/program-to-check-leap-year/", resource: "GFG" },
+            ]},
+            { day: 12, title: "Two Dimensional Arrays (2D Arrays)", note: "", tasks: [
+                { desc: "2D Arrays in C++", type: "Video", link: "https://www.youtube.com/watch?v=lBL8327gq8I", resource: "Apna College" },
+                { desc: "Search in 2D Matrix - Part 2", type: "Video", link: "https://www.youtube.com/watch?v=LEFFjgt5i6w", resource: "Shradha Khapra" },
+                { desc: "2D Arrays and Matrix Operations", type: "Article", link: "https://www.geeksforgeeks.org/matrix/", resource: "GFG" },
+                { desc: "Spiral Matrix", type: "Medium Problem", link: "https://leetcode.com/problems/spiral-matrix/", resource: "LeetCode" },
+            ]},
+            { day: 13, title: "Functions with Parameters and Return Types", note: "", tasks: [
+                { desc: "Functions with Parameters", type: "Video", link: "https://www.youtube.com/watch?v=P08Z_NC8GuY", resource: "Shradha Khapra" },
+                { desc: "Functions in C++", type: "Video", link: "https://www.youtube.com/watch?v=83KtncYgHYQ", resource: "Apna College" },
+                { desc: "C++ Functions Explained", type: "Article", link: "https://www.geeksforgeeks.org/functions-in-cpp/", resource: "GFG" },
+                { desc: "Calculate Power Using Functions", type: "Easy Problem", link: "https://www.geeksforgeeks.org/write-a-c-program-to-calculate-the-power-of-a-number/", resource: "GFG" },
+            ]},
+            { day: 14, title: "Recursion - Advanced Concepts", note: "", tasks: [
+                { desc: "Recursion Must Know Interview Problems", type: "Video", link: "https://www.youtube.com/watch?v=zC4D7cuaYzo", resource: "Aditya Verma" },
+                { desc: "Simple Backtracking Recursion", type: "Video", link: "https://www.youtube.com/watch?v=H0ceDO3Cccb", resource: "Love Babbar" },
+                { desc: "Backtracking and Recursion", type: "Article", link: "https://www.geeksforgeeks.org/backtracking-algorithms/", resource: "GFG" },
+                { desc: "Print All Subsequences of a String", type: "Medium Problem", link: "https://www.geeksforgeeks.org/print-subsequences-string/", resource: "GFG" },
+            ]},
+            { day: 15, title: "Pointers – Basics to Intermediate", note: "", tasks: [
+                { desc: "Pointers in C++ Explained", type: "Video", link: "https://www.youtube.com/watch?v=qYEjR6M0wSk", resource: "Shradha Khapra" },
+                { desc: "Double Pointers", type: "Video", link: "https://www.youtube.com/watch?v=tTLqB84-z10", resource: "CodeHelp by Babbar" },
+                { desc: "Pointers in C++", type: "Article", link: "https://www.geeksforgeeks.org/pointers-in-cpp/", resource: "GFG" },
+                { desc: "Swap Two Numbers Using Pointers", type: "Easy Problem", link: "https://www.geeksforgeeks.org/write-a-function-to-swap-two-numbers-in-c/", resource: "GFG" },
+            ]},
+            { day: 16, title: "STL - Vector, Iterator & Its Usage", note: "", tasks: [
+                { desc: "C++ STL Vector Introduction", type: "Video", link: "https://www.youtube.com/watch?v=3Qqr2QZWlb4", resource: "CodeHelp by Babbar" },
+                { desc: "STL Vector Example", type: "Video", link: "https://www.youtube.com/watch?v=okhdtEk1iKk", resource: "Apna College" },
+                { desc: "Vectors in C++ STL", type: "Article", link: "https://www.geeksforgeeks.org/vector-in-cpp-stl/", resource: "GFG" },
+                { desc: "Insert/Delete in Vector", type: "Practice", link: "https://www.geeksforgeeks.org/vector-in-cpp-stl/", resource: "GFG" },
+            ]},
+            { day: 17, title: "Stack Data Structure - Implementation and Applications", note: "", tasks: [
+                { desc: "Stack in C++ STL and Implementation", type: "Video", link: "https://www.youtube.com/watch?v=PLu3bD4gWLg", resource: "Love Babbar" },
+                { desc: "Stack in C++", type: "Video", link: "https://www.youtube.com/watch?v=tqQ5fTamIN4", resource: "CodeHelp Babbar" },
+                { desc: "Stack Data Structure", type: "Article", link: "https://www.geeksforgeeks.org/stack-data-structure/", resource: "GFG" },
+                { desc: "Balanced Parentheses", type: "Easy Problem", link: "https://www.geeksforgeeks.org/check-for-balanced-parentheses-in-an-expression/", resource: "GFG" },
+            ]},
+            { day: 18, title: "Queue Data Structure - Implementation & Variants", note: "", tasks: [
+                { desc: "Queues in C++ STL and Implementation", type: "Video", link: "https://www.youtube.com/watch?v=WpXHr6gFbOM", resource: "Love Babbar" },
+                { desc: "Queues Tutorial", type: "Video", link: "https://www.youtube.com/watch?v=W7uB9-TKfTg", resource: "CodeHelp Babbar" },
+                { desc: "Queue in C++", type: "Article", link: "https://www.geeksforgeeks.org/queue-data-structure/", resource: "GFG" },
+                { desc: "Implement Circular Queue", type: "Medium Problem", link: "https://www.geeksforgeeks.org/circular-queue-set-1-introduction-array-implementation/", resource: "GFG" },
+            ]},
+            { day: 19, title: "Introduction to Linked Lists - Types & Basic Operations", note: "", tasks: [
+                { desc: "Linked List Introduction", type: "Video", link: "https://www.youtube.com/watch?v=HKfj0l7ndbc", resource: "CodeBeauty" },
+                { desc: "Linked List Structure", type: "Video", link: "https://www.youtube.com/watch?v=JkEDq4csUcY", resource: "Abdul Bari" },
+                { desc: "Linked List Basics", type: "Article", link: "https://www.geeksforgeeks.org/linked-list-set-1-introduction/", resource: "GFG" },
+                { desc: "Insert Node in Linked List", type: "Easy Problem", link: "https://www.geeksforgeeks.org/linked-list-set-4-inserting-a-node/", resource: "GFG" },
+            ]},
+            { day: 20, title: "Introduction to Searching Algorithms - Binary Search", note: "", tasks: [
+                { desc: "Binary Search Explained", type: "Video", link: "https://www.youtube.com/watch?v=P3YID7liBug", resource: "CodeHelp Babbar" },
+                { desc: "Binary Search Algorithm", type: "Video", link: "https://www.youtube.com/watch?v=7h1s2SojIRw", resource: "Apna College" },
+                { desc: "Binary Search", type: "Article", link: "https://www.geeksforgeeks.org/binary-search/", resource: "GFG" },
+                { desc: "Binary Search Implementation", type: "Easy Problem", link: "https://www.geeksforgeeks.org/binary-search/", resource: "GFG" },
+            ]},
+            { day: 21, title: "Advanced Linked List Operations", note: "", tasks: [
+                { desc: "Doubly Linked List Intro and Operations", type: "Video", link: "https://www.youtube.com/watch?v=07mR_gKbJm4", resource: "Abdul Bari" },
+                { desc: "Linked List Deletion and Traversal", type: "Video", link: "https://www.youtube.com/watch?v=9r6UbSNF9G0", resource: "CodeHelp Babbar" },
+                { desc: "Doubly Linked List", type: "Article", link: "https://www.geeksforgeeks.org/doubly-linked-list/", resource: "GFG" },
+                { desc: "Delete Node in Doubly Linked List", type: "Medium Problem", link: "https://www.geeksforgeeks.org/delete-a-node-in-doubly-linked-list/", resource: "GFG" },
+            ]},
+            { day: 22, title: "Trees — Introduction & Basic Terminology", note: "", tasks: [
+                { desc: "Tree Data Structure Introduction", type: "Video", link: "https://www.youtube.com/watch?v=oSWTXtMglKE", resource: "Abdul Bari" },
+                { desc: "Binary Tree Basics", type: "Video", link: "https://www.youtube.com/watch?v=lI62mXY5b_c", resource: "Apna College" },
+                { desc: "Trees Overview", type: "Article", link: "https://www.geeksforgeeks.org/binary-tree-data-structure/", resource: "GFG" },
+                { desc: "Tree Traversal", type: "Easy Problem", link: "https://www.geeksforgeeks.org/tree-traversals-inorder-preorder-and-postorder/", resource: "GFG" },
+            ]},
+            { day: 23, title: "Tree Traversals - Inorder, Preorder, Postorder", note: "", tasks: [
+                { desc: "Inorder Traversal", type: "Video", link: "https://www.youtube.com/watch?v=0YfZxhjAOJQ", resource: "Abdul Bari" },
+                { desc: "Preorder and Postorder Traversals", type: "Video", link: "https://www.youtube.com/watch?v=9Pzj7Aj25lw", resource: "Apna College" },
+                { desc: "Tree Traversals", type: "Article", link: "https://www.geeksforgeeks.org/tree-traversals-inorder-preorder-and-postorder/", resource: "GFG" },
+                { desc: "Implement Tree Traversals", type: "Practice", link: "https://www.geeksforgeeks.org/implement-tree-traversals-inorder-preorder-postorder/", resource: "GFG" },
+            ]},
+            { day: 24, title: "Binary Search Tree (BST) — Basics", note: "", tasks: [
+                { desc: "Binary Search Tree Introduction", type: "Video", link: "https://www.youtube.com/watch?v=COZK7NATh4k", resource: "Abdul Bari" },
+                { desc: "BST Insertion & Deletion", type: "Video", link: "https://www.youtube.com/watch?v=7tS54VyCG5s", resource: "CodeHelp Babbar" },
+                { desc: "BST Overview", type: "Article", link: "https://www.geeksforgeeks.org/binary-search-tree-data-structure/", resource: "GFG" },
+                { desc: "Search in BST", type: "Easy Problem", link: "https://www.geeksforgeeks.org/binary-search-tree-set-1-search-and-insertion/", resource: "GFG" },
+            ]},
+            { day: 25, title: "Graphs — Basics & Terminologies", note: "", tasks: [
+                { desc: "Introduction to Graphs", type: "Video", link: "https://www.youtube.com/watch?v=AJh70zu_uy4", resource: "Abdul Bari" },
+                { desc: "Graph Representations", type: "Video", link: "https://www.youtube.com/watch?v=09_LlHjoEiY", resource: "Apna College" },
+                { desc: "Graph Basics", type: "Article", link: "https://www.geeksforgeeks.org/graph-data-structure-and-algorithms/", resource: "GFG" },
+                { desc: "Graph Representation", type: "Practice", link: "https://www.geeksforgeeks.org/graph-representations/", resource: "GFG" },
+            ]},
+            { day: 26, title: "Graph Traversals - BFS & DFS", note: "", tasks: [
+                { desc: "Breadth First Search (BFS)", type: "Video", link: "https://www.youtube.com/watch?v=pcKY4hjDrxk", resource: "Abdul Bari" },
+                { desc: "Depth First Search (DFS)", type: "Video", link: "https://www.youtube.com/watch?v=7fujbpJ0LB4", resource: "Apna College" },
+                { desc: "BFS & DFS", type: "Article", link: "https://www.geeksforgeeks.org/breadth-first-search-or-bfs-for-a-graph/", resource: "GFG" },
+                { desc: "BFS Implementation", type: "Easy Problem", link: "https://www.geeksforgeeks.org/breadth-first-search-or-bfs-for-a-graph/", resource: "GFG" },
+            ]},
+            { day: 27, title: "Hashing Basics", note: "", tasks: [
+                { desc: "Hashing Introduction", type: "Video", link: "https://www.youtube.com/watch?v=shs0KM3wKv8", resource: "Love Babbar" },
+                { desc: "Hash Map and Set in C++", type: "Video", link: "https://www.youtube.com/watch?v=FxZb93Pe-fQ", resource: "Apna College" },
+                { desc: "Hashing", type: "Article", link: "https://www.geeksforgeeks.org/hashing-data-structure/", resource: "GFG" },
+                { desc: "Count Distinct Elements in an Array", type: "Easy Problem", link: "https://www.geeksforgeeks.org/count-distinct-elements-in-an-array/", resource: "GFG" },
+            ]},
+            { day: 28, title: "Dynamic Programming (DP) - Introduction", note: "", tasks: [
+                { desc: "DP Basics", type: "Video", link: "https://www.youtube.com/watch?v=YBSt1jYwVfU", resource: "Abdul Bari" },
+                { desc: "DP Introduction", type: "Video", link: "https://www.youtube.com/watch?v=tyB0ztf0DNY", resource: "Love Babbar" },
+                { desc: "Dynamic Programming", type: "Article", link: "https://www.geeksforgeeks.org/dynamic-programming/", resource: "GFG" },
+                { desc: "Fibonacci Number DP", type: "Easy Problem", link: "https://www.geeksforgeeks.org/program-for-nth-fibonacci-number/", resource: "GFG" },
+            ]},
+            { day: 29, title: "DP - Memoization & Tabulation", note: "", tasks: [
+                { desc: "Memoization Explained", type: "Video", link: "https://www.youtube.com/watch?v=Pd6Pb6FK884", resource: "CodeHelp Babbar" },
+                { desc: "Tabulation Explained", type: "Video", link: "https://www.youtube.com/watch?v=Jb12xbdgtFg", resource: "Love Babbar" },
+                { desc: "Memoization and Tabulation", type: "Article", link: "https://www.geeksforgeeks.org/dynamic-programming-set-1/", resource: "GFG" },
+                { desc: "Climbing Stairs DP", type: "Easy Problem", link: "https://leetcode.com/problems/climbing-stairs/", resource: "LeetCode" },
+            ]},
+            { day: 30, title: "DP Practice - Coin Change Problem", note: "", tasks: [
+                { desc: "Coin Change Recursive and DP", type: "Video", link: "https://www.youtube.com/watch?v=Y0ZqKpToTic", resource: "Apna College" },
+                { desc: "Coin Change Problem Detailed", type: "Video", link: "https://www.youtube.com/watch?v=pM7DGT8oXwQ", resource: "Love Babbar" },
+                { desc: "Coin Change Problem", type: "Article", link: "https://www.geeksforgeeks.org/coin-change-dp-7/", resource: "GFG" },
+                { desc: "Coin Change", type: "Medium Problem", link: "https://leetcode.com/problems/coin-change/", resource: "LeetCode" },
+            ]},
+            { day: 31, title: "Advanced Trees - Binary Tree Properties & Height", note: "", tasks: [
+                { desc: "Binary Tree Height Calculation", type: "Video", link: "https://www.youtube.com/watch?v=YsTDR3jEcs0", resource: "Apna College" },
+                { desc: "Binary Tree Properties Explained", type: "Video", link: "https://www.youtube.com/watch?v=XfAVOrOP68k", resource: "Abdul Bari" },
+                { desc: "Height of Binary Tree", type: "Article", link: "https://www.geeksforgeeks.org/find-height-binary-tree/", resource: "GFG" },
+                { desc: "Find Height of Binary Tree", type: "Easy Problem", link: "https://www.geeksforgeeks.org/write-a-c-program-to-find-the-maximum-depth-or-height-of-a-tree/", resource: "GFG" },
+            ]},
+            { day: 32, title: "Tree Problems - Diameter of a Tree", note: "", tasks: [
+                { desc: "Diameter of Binary Tree", type: "Video", link: "https://www.youtube.com/watch?v=RY6KZON2KEk", resource: "Love Babbar" },
+                { desc: "Tree Diameter Explained", type: "Video", link: "https://www.youtube.com/watch?v=Ag6YV1sAYf8", resource: "Abdul Bari" },
+                { desc: "Diameter of Binary Tree", type: "Article", link: "https://www.geeksforgeeks.org/diameter-of-a-binary-tree/", resource: "GFG" },
+                { desc: "Diameter of Binary Tree", type: "Medium Problem", link: "https://www.geeksforgeeks.org/diameter-of-a-binary-tree/", resource: "GFG" },
+            ]},
+            { day: 33, title: "Graph Algorithms - Topological Sort", note: "", tasks: [
+                { desc: "Topological Sort", type: "Video", link: "https://www.youtube.com/watch?v=ddTC4Zovtbc", resource: "Apna College" },
+                { desc: "Topological Sorting Basics", type: "Video", link: "https://www.youtube.com/watch?v=3e9ZCUCL9wI", resource: "Abdul Bari" },
+                { desc: "Topological Sort", type: "Article", link: "https://www.geeksforgeeks.org/topological-sorting/", resource: "GFG" },
+                { desc: "Topological Sort Implementation", type: "Medium Problem", link: "https://www.geeksforgeeks.org/topological-sorting-indegree-based-solution/", resource: "GFG" },
+            ]},
+            { day: 34, title: "Graph Algorithms - Cycle Detection", note: "", tasks: [
+                { desc: "Cycle Detection in Directed Graph", type: "Video", link: "https://www.youtube.com/watch?v=V6mKVRU1evU", resource: "Apna College" },
+                { desc: "Cycle Detection in Undirected Graph", type: "Video", link: "https://www.youtube.com/watch?v=zZrzNqOVzGo", resource: "Love Babbar" },
+                { desc: "Cycle Detection", type: "Article", link: "https://www.geeksforgeeks.org/detect-cycle-in-a-graph/", resource: "GFG" },
+                { desc: "Detect Cycle in Graph", type: "Medium Problem", link: "https://www.geeksforgeeks.org/detect-cycle-undirected-graph/", resource: "GFG" },
+            ]},
+            { day: 35, title: "Dynamic Programming - Longest Common Subsequence (LCS)", note: "", tasks: [
+                { desc: "LCS Problem", type: "Video", link: "https://www.youtube.com/watch?v=UxjVJyfe4fo", resource: "Love Babbar" },
+                { desc: "LCS Explained", type: "Video", link: "https://www.youtube.com/watch?v=NnD96abizww", resource: "Abdul Bari" },
+                { desc: "Longest Common Subsequence", type: "Article", link: "https://www.geeksforgeeks.org/longest-common-subsequence/", resource: "GFG" },
+                { desc: "LCS Implementation", type: "Medium Problem", link: "https://www.geeksforgeeks.org/longest-common-subsequence-dp-4/", resource: "GFG" },
+            ]},
+            { day: 36, title: "Dynamic Programming - 0/1 Knapsack Problem", note: "", tasks: [
+                { desc: "0/1 Knapsack Problem", type: "Video", link: "https://www.youtube.com/watch?v=8LusJS5-AGo", resource: "Love Babbar" },
+                { desc: "Knapsack Problem Explained", type: "Video", link: "https://www.youtube.com/watch?v=GZG1WEKcuR0", resource: "Abdul Bari" },
+                { desc: "0/1 Knapsack", type: "Article", link: "https://www.geeksforgeeks.org/0-1-knapsack-problem-dp-10/", resource: "GFG" },
+                { desc: "Knapsack Problem", type: "Medium Problem", link: "https://www.geeksforgeeks.org/0-1-knapsack-problem-dp-10/", resource: "GFG" },
+            ]},
+            { day: 37, title: "Trie Data Structure - Basics & Implementation", note: "", tasks: [
+                { desc: "Trie Explanation", type: "Video", link: "https://www.youtube.com/watch?v=AXjmTQ8LEoI", resource: "Love Babbar" },
+                { desc: "Trie Implementation in C++", type: "Video", link: "https://www.youtube.com/watch?v=qw6YK2HnO60", resource: "CodeHelp Babbar" },
+                { desc: "Trie Data Structure", type: "Article", link: "https://www.geeksforgeeks.org/trie-insert-and-search/", resource: "GFG" },
+                { desc: "Implement Trie", type: "Medium Problem", link: "https://www.geeksforgeeks.org/implement-trie-prefix-tree/", resource: "GFG" },
+            ]},
+            { day: 38, title: "Segment Trees - Introduction", note: "", tasks: [
+                { desc: "Segment Tree Basics", type: "Video", link: "https://www.youtube.com/watch?v=ZB7BZMhfPgk", resource: "Love Babbar" },
+                { desc: "Segment Tree Introduction", type: "Video", link: "https://www.youtube.com/watch?v=rJHnHHAOXBY", resource: "Apna College" },
+                { desc: "Segment Tree", type: "Article", link: "https://www.geeksforgeeks.org/segment-tree-set-1-sum-of-given-range/", resource: "GFG" },
+                { desc: "Range Sum Query Using Segment Tree", type: "Medium Problem", link: "https://www.geeksforgeeks.org/segment-tree-set-1-sum-of-given-range/", resource: "GFG" },
+            ]},
+            { day: 39, title: "Fenwick Tree (Binary Indexed Tree)", note: "", tasks: [
+                { desc: "Fenwick Tree Explained", type: "Video", link: "https://www.youtube.com/watch?v=CWDQJGaN1gY", resource: "Love Babbar" },
+                { desc: "Fenwick Tree Implementation", type: "Video", link: "https://www.youtube.com/watch?v=BC4hikiJQH0", resource: "CodeHelp Babbar" },
+                { desc: "Fenwick Tree", type: "Article", link: "https://www.geeksforgeeks.org/binary-indexed-tree-or-fenwick-tree-2/", resource: "GFG" },
+                { desc: "Fenwick Tree Implementation", type: "Hard Problem", link: "https://www.geeksforgeeks.org/binary-indexed-tree-or-fenwick-tree-2/", resource: "GFG" },
+            ]},
+            { day: 40, title: "Bit Manipulation Basics", note: "", tasks: [
+                { desc: "Bit Manipulation Introduction", type: "Video", link: "https://www.youtube.com/watch?v=ZStcrzVyFnc", resource: "Love Babbar" },
+                { desc: "Bit Manipulation Tricks", type: "Video", link: "https://www.youtube.com/watch?v=6JjQEp9mCkA", resource: "Apna College" },
+                { desc: "Bit Manipulation", type: "Article", link: "https://www.geeksforgeeks.org/bitwise-operators-in-c-cpp/", resource: "GFG" },
+                { desc: "Count Set Bits", type: "Easy Problem", link: "https://www.geeksforgeeks.org/count-set-bits-in-an-integer/", resource: "GFG" },
+            ]},
+            { day: 41, title: "Graph Algorithms - Shortest Path Dijkstra's Algorithm", note: "", tasks: [
+                { desc: "Dijkstra's Algorithm Explained", type: "Video", link: "https://www.youtube.com/watch?v=pVfj6mxhdMw", resource: "Love Babbar" },
+                { desc: "Dijkstra’s Algorithm Step-by-Step", type: "Video", link: "https://www.youtube.com/watch?v=GazC3A4OQTE", resource: "Apna College" },
+                { desc: "Dijkstra’s Algorithm", type: "Article", link: "https://www.geeksforgeeks.org/dijkstras-shortest-path-algorithm-greedy-algo-7/", resource: "GFG" },
+                { desc: "Implement Dijkstra", type: "Medium Problem", link: "https://www.geeksforgeeks.org/dijkstras-shortest-path-algorithm-greedy-algo-7/", resource: "GFG" },
+            ]},
+            { day: 42, title: "Backtracking - Introduction & Problems", note: "", tasks: [
+                { desc: "Backtracking Introduction", type: "Video", link: "https://www.youtube.com/watch?v=6BP-Fy4Uq6k", resource: "Love Babbar" },
+                { desc: "Backtracking | N-Queen Problem", type: "Video", link: "https://www.youtube.com/watch?v=xNhzN9-crt8", resource: "CodeHelp Babbar" },
+                { desc: "Backtracking", type: "Article", link: "https://www.geeksforgeeks.org/backtracking-algorithms/", resource: "GFG" },
+                { desc: "N-Queens Problem", type: "Hard Problem", link: "https://www.geeksforgeeks.org/n-queen-problem-backtracking-3/", resource: "GFG" },
+            ]},
+            { day: 43, title: "Greedy Algorithms - Basics & Examples", note: "", tasks: [
+                { desc: "Greedy Algorithm Explained", type: "Video", link: "https://www.youtube.com/watch?v=arHt8X0fQfE", resource: "Love Babbar" },
+                { desc: "Greedy Algorithms Introduction", type: "Video", link: "https://www.youtube.com/watch?v=U6h7TOzWOW4", resource: "Apna College" },
+                { desc: "Greedy Algorithms", type: "Article", link: "https://www.geeksforgeeks.org/greedy-algorithms/", resource: "GFG" },
+                { desc: "Activity Selection Problem", type: "Easy Problem", link: "https://www.geeksforgeeks.org/activity-selection-problem-greedy-algo-1/", resource: "GFG" },
+            ]},
+            { day: 44, title: "Disjoint Set Union (DSU) / Union-Find", note: "", tasks: [
+                { desc: "DSU/Union Find Tutorial", type: "Video", link: "https://www.youtube.com/watch?v=66KtN8uJruE", resource: "Love Babbar" },
+                { desc: "DSU Implementation", type: "Video", link: "https://www.youtube.com/watch?v=1r8cNzzmgpA", resource: "CodeHelp Babbar" },
+                { desc: "Disjoint Set Union", type: "Article", link: "https://www.geeksforgeeks.org/disjoint-set-data-structures/", resource: "GFG" },
+                { desc: "Union Find Implementation", type: "Medium Problem", link: "https://www.geeksforgeeks.org/union-find/", resource: "GFG" },
+            ]},
+            { day: 45, title: "Trie – Advanced Usage", note: "", tasks: [
+                { desc: "Trie | Advanced Problems", type: "Video", link: "https://www.youtube.com/watch?v=qw6YK2HnO60", resource: "Love Babbar" },
+                { desc: "Trie Problem Practice", type: "Video", link: "https://www.youtube.com/watch?v=X5cJcc_D3i0", resource: "Apna College" },
+                { desc: "Trie Advanced Usage", type: "Article", link: "https://www.geeksforgeeks.org/trie-insert-and-search/", resource: "GFG" },
+                { desc: "Word Search with Trie", type: "Hard Problem", link: "https://leetcode.com/problems/word-search-ii/", resource: "LeetCode" },
+            ]},
+            { day: 46, title: "Segment Trees - Range Minimum Query", note: "", tasks: [
+                { desc: "Segment Tree Range Minimum Query", type: "Video", link: "https://www.youtube.com/watch?v=sa-TUpSx1JA", resource: "Love Babbar" },
+                { desc: "Segment Trees Explained", type: "Video", link: "https://www.youtube.com/watch?v=rg_eGUenGXA", resource: "Programming Made Simple" },
+                { desc: "Segment Tree RMQ", type: "Article", link: "https://www.geeksforgeeks.org/segment-tree-set-2-range-minimum-query-rm/", resource: "GFG" },
+                { desc: "Range Minimum Query", type: "Medium Problem", link: "https://www.geeksforgeeks.org/range-minimum-query-for-static-array/", resource: "GFG" },
+            ]},
+            { day: 47, title: "Segment Tree - Lazy Propagation", note: "", tasks: [
+                { desc: "Lazy Propagation in Segment Tree", type: "Video", link: "https://www.youtube.com/watch?v=6z2NS_oDRfE", resource: "Love Babbar" },
+                { desc: "Lazy Propagation Explained", type: "Video", link: "https://www.youtube.com/watch?v=4vryPwLtjIg", resource: "Apna College" },
+                { desc: "Lazy Propagation", type: "Article", link: "https://www.geeksforgeeks.org/lazy-propagation-in-segment-tree/", resource: "GFG" },
+                { desc: "Range Update Query", type: "Hard Problem", link: "https://www.geeksforgeeks.org/segment-tree-set-3-range-updates/", resource: "GFG" },
+            ]},
+            { day: 48, title: "Bit Manipulation - Advanced Tricks", note: "", tasks: [
+                { desc: "Bit Manipulation Tricks", type: "Video", link: "https://www.youtube.com/watch?v=8ajxpazP_o4", resource: "Love Babbar" },
+                { desc: "Bit Manipulation Problems in C++", type: "Video", link: "https://www.youtube.com/watch?v=eA7miDdNH8s", resource: "Apna College" },
+                { desc: "Bit Manipulation Techniques", type: "Article", link: "https://www.geeksforgeeks.org/bit-tricks-competitive-programming/", resource: "GFG" },
+                { desc: "Check Power of Two", type: "Easy Problem", link: "https://www.geeksforgeeks.org/program-to-check-if-a-number-is-power-of-two/", resource: "GFG" },
+            ]},
+            { day: 49, title: "Advanced Dynamic Programming - Longest Increasing Subsequence (LIS)", note: "", tasks: [
+                { desc: "LIS Explanation", type: "Video", link: "https://www.youtube.com/watch?v=CE2b_-XfVDk", resource: "Love Babbar" },
+                { desc: "LIS with Binary Search", type: "Video", link: "https://www.youtube.com/watch?v=NrfdfTs9wUE", resource: "Abdul Bari" },
+                { desc: "Longest Increasing Subsequence", type: "Article", link: "https://www.geeksforgeeks.org/longest-increasing-subsequence-dp-3/", resource: "GFG" },
+                { desc: "LIS Implementation", type: "Medium Problem", link: "https://www.geeksforgeeks.org/longest-increasing-subsequence-dp-3/", resource: "GFG" },
+            ]},
+            { day: 50, title: "DP Practice - Edit Distance Problem", note: "", tasks: [
+                { desc: "Edit Distance Explained", type: "Video", link: "https://www.youtube.com/watch?v=We3YDTzNXEk", resource: "Love Babbar" },
+                { desc: "Edit Distance", type: "Video", link: "https://www.youtube.com/watch?v=0zYxCzEwiKM", resource: "Abdul Bari" },
+                { desc: "Edit Distance", type: "Article", link: "https://www.geeksforgeeks.org/edit-distance-dp-5/", resource: "GFG" },
+                { desc: "Edit Distance", type: "Hard Problem", link: "https://leetcode.com/problems/edit-distance/", resource: "LeetCode" },
+            ]},
+            { day: 51, title: "Graph Algorithms - Minimum Spanning Tree (MST)", note: "", tasks: [
+                { desc: "MST Introduction & Kruskal’s Algorithm", type: "Video", link: "https://www.youtube.com/watch?v=71UQH7Pr9kU", resource: "Love Babbar" },
+                { desc: "MST - Prim’s Algorithm Explained", type: "Video", link: "https://www.youtube.com/watch?v=cplfcGZmX7I", resource: "Abdul Bari" },
+                { desc: "Minimum Spanning Tree", type: "Article", link: "https://www.geeksforgeeks.org/minimum-spanning-tree/", resource: "GFG" },
+                { desc: "Kruskal’s MST", type: "Medium Problem", link: "https://www.geeksforgeeks.org/kruskals-minimum-spanning-tree-algorithm-greedy-algo-2/", resource: "GFG" },
+            ]},
+            { day: 52, title: "Advanced Graph Problems - Bridges & Articulation Points", note: "", tasks: [
+                { desc: "Bridges in Graph", type: "Video", link: "https://www.youtube.com/watch?v=05Vh7XoBhDE", resource: "Love Babbar" },
+                { desc: "Articulation Points", type: "Video", link: "https://www.youtube.com/watch?v=Wi6Pk5mr2AY", resource: "Apna College" },
+                { desc: "Bridges and Articulation Points", type: "Article", link: "https://www.geeksforgeeks.org/bridge-in-a-graph/", resource: "GFG" },
+                { desc: "Find Bridges", type: "Hard Problem", link: "https://www.geeksforgeeks.org/bridge-in-a-graph/", resource: "GFG" },
+            ]},
+            { day: 53, title: "Trie Practice - AutoComplete and Dictionary Problems", note: "", tasks: [
+                { desc: "Trie Autocomplete", type: "Video", link: "https://www.youtube.com/watch?v=vlYZb68kAY0", resource: "Gaurav Sen" },
+                { desc: "Trie Problem Practice", type: "Video", link: "https://www.youtube.com/watch?v=V3_W1QJd_5E", resource: "CodeHelp Babbar" },
+                { desc: "Trie Autocomplete", type: "Article", link: "https://www.geeksforgeeks.org/auto-complete-feature-using-trie/", resource: "GFG" },
+                { desc: "AutoComplete System", type: "Hard Problem", link: "https://leetcode.com/problems/design-search-autocomplete-system/", resource: "LeetCode" },
+            ]},
+            { day: 54, title: "Segment Tree Practice - Lazy Propagation Range Updates", note: "", tasks: [
+                { desc: "Segment Tree Lazy Propagation Detailed", type: "Video", link: "https://www.youtube.com/watch?v=WrO1P2pRHgE", resource: "Love Babbar" },
+                { desc: "Segment Tree Lazy Propagation", type: "Video", link: "https://www.youtube.com/watch?v=jqkTZ8Wrb0E", resource: "Apna College" },
+                { desc: "Lazy Propagation", type: "Article", link: "https://www.geeksforgeeks.org/lazy-propagation-in-segment-tree/", resource: "GFG" },
+                { desc: "Range Update Query", type: "Hard Problem", link: "https://www.geeksforgeeks.org/segment-tree-set-3-range-updates/", resource: "GFG" },
+            ]},
+            { day: 55, title: "Bitmasking - Applications and Problems", note: "", tasks: [
+                { desc: "Bitmask DP Basics", type: "Video", link: "https://www.youtube.com/watch?v=WR6c0_E50Pk", resource: "Love Babbar" },
+                { desc: "Bitmasking Tricks", type: "Video", link: "https://www.youtube.com/watch?v=6JjQEp9mCkA", resource: "Apna College" },
+                { desc: "Bitmasking in CP", type: "Article", link: "https://www.geeksforgeeks.org/bitmasking-techniques-in-competitive-programming/", resource: "GFG" },
+                { desc: "Subset Sum Problem", type: "Medium Problem", link: "https://www.geeksforgeeks.org/subset-sum-problem-dp-25/", resource: "GFG" },
+            ]},
+            { day: 56, title: "Advanced Dynamic Programming - Matrix Chain Multiplication", note: "", tasks: [
+                { desc: "Matrix Chain Multiplication", type: "Video", link: "https://www.youtube.com/watch?v=GXg0yX4RaNM", resource: "Love Babbar" },
+                { desc: "MCM Problem Explained", type: "Video", link: "https://www.youtube.com/watch?v=vgLJ7ru9-po", resource: "Apna College" },
+                { desc: "Matrix Chain Multiplication", type: "Article", link: "https://www.geeksforgeeks.org/matrix-chain-multiplication-dp-8/", resource: "GFG" },
+                { desc: "Matrix Chain Multiplication", type: "Hard Problem", link: "https://www.geeksforgeeks.org/matrix-chain-multiplication-dp-8/", resource: "GFG" },
+            ]},
+            { day: 57, title: "Advanced DP - Palindrome Partitioning", note: "", tasks: [
+                { desc: "Palindrome Partitioning", type: "Video", link: "https://www.youtube.com/watch?v=MCylX9dwkXQ", resource: "Love Babbar" },
+                { desc: "Palindrome Partitioning Explained", type: "Video", link: "https://www.youtube.com/watch?v=ReX9CNBLp14", resource: "Apna College" },
+                { desc: "Palindrome Partitioning", type: "Article", link: "https://www.geeksforgeeks.org/palindrome-partitioning-dp-17/", resource: "GFG" },
+                { desc: "Palindrome Partitioning", type: "Hard Problem", link: "https://www.geeksforgeeks.org/palindrome-partitioning-dp-17/", resource: "GFG" },
+            ]},
+            { day: 58, title: "Graph - Strongly Connected Components (SCC)", note: "", tasks: [
+                { desc: "SCC Using Kosaraju’s Algorithm", type: "Video", link: "https://www.youtube.com/watch?v=RpgcYiky7uA", resource: "Love Babbar" },
+                { desc: "SCC Explained", type: "Video", link: "https://www.youtube.com/watch?v=RpgI1k6I23g", resource: "Abdul Bari" },
+                { desc: "Strongly Connected Components", type: "Article", link: "https://www.geeksforgeeks.org/strongly-connected-components/", resource: "GFG" },
+                { desc: "Find SCC", type: "Hard Problem", link: "https://www.geeksforgeeks.org/strongly-connected-components/", resource: "GFG" },
+            ]},
+            { day: 59, title: "Trie Advanced - Longest Common Prefix", note: "", tasks: [
+                { desc: "Trie - Longest Common Prefix", type: "Video", link: "https://www.youtube.com/watch?v=qbM39udb7aM", resource: "Love Babbar" },
+                { desc: "Trie Problem Solving", type: "Video", link: "https://www.youtube.com/watch?v=JxQ7UknrOSM", resource: "CodeHelp Babbar" },
+                { desc: "Longest Common Prefix", type: "Article", link: "https://www.geeksforgeeks.org/longest-common-prefix-using-trie/", resource: "GFG" },
+                { desc: "Longest Common Prefix", type: "Easy Problem", link: "https://www.geeksforgeeks.org/longest-common-prefix-using-trie/", resource: "GFG" },
+            ]},
+            { day: 60, title: "Problems Summary & Revision Day", note: "", tasks: [
+                { desc: "DSA Revision and Important Problems", type: "Video", link: "https://www.youtube.com/watch?v=ogzwPZoohQE", resource: "Love Babbar" },
+                { desc: "Revise problems from previous days, solve at least 10 problems from LeetCode or GFG", type: "Practice", link: "#", resource: "Self-Review" },
+                { desc: "Focus on weak topics and revisit theory", type: "Revision", link: "#", resource: "Self-Review" },
+            ]},
+        ];
+
+        // Java Schedule Data (Updated Days 1-10)
+        const DEFAULT_SCHEDULE_JAVA = [
+            { day: 1, title: "Java Basics - Setup, Variables & Input/Output", note: "", tasks: [
+                { desc: "Java Programming Basics", type: "Video", link: "https://www.youtube.com/watch?v=6x4bCHX5hz0", resource: "Kunal Kushwaha" },
+                { desc: "Java Input Output", type: "Video", link: "https://www.youtube.com/watch?v=Psa_pz9YUDI", resource: "Shradha Didi" },
+                { desc: "Java Basics", type: "Article", link: "https://www.geeksforgeeks.org/java-basics/", resource: "GFG" },
+                { desc: "Print Hello World in Java", type: "Easy Problem", link: "https://www.geeksforgeeks.org/java-program-to-print-hello-world/", resource: "GFG" },
+            ]},
+            { day: 2, title: "Data Types, Operators & Control Flow", note: "", tasks: [
+                { desc: "Java Data Types & Operators", type: "Video", link: "https://www.youtube.com/watch?v=Ao-H9qq6q_A", resource: "Kunal Kushwaha" },
+                { desc: "Conditional Statements in Java", type: "Video", link: "https://www.youtube.com/watch?v=RwVY4G6e1SE", resource: "Shradha Didi" },
+                { desc: "Data Types & Operators", type: "Article", link: "https://www.geeksforgeeks.org/data-types-in-java/", resource: "GFG" },
+                { desc: "Check if Number is Even/Odd", type: "Easy Problem", link: "https://www.geeksforgeeks.org/java-program-to-check-number-even-odd/", resource: "GFG" },
+            ]},
+            { day: 3, title: "Loops & Arrays in Java", note: "", tasks: [
+                { desc: "Loops in Java", type: "Video", link: "https://www.youtube.com/watch?v=lkR2cjYb_OI", resource: "Kunal Kushwaha" },
+                { desc: "Arrays in Java Explained", type: "Video", link: "https://www.youtube.com/watch?v=UrS1AJ5S2iQ", resource: "Shradha Didi" },
+                { desc: "Arrays in Java", type: "Article", link: "https://www.geeksforgeeks.org/arrays-in-java/", resource: "GFG" },
+                { desc: "Print Elements of Array", type: "Easy Problem", link: "https://www.geeksforgeeks.org/print-array-elements-java/", resource: "GFG" },
+            ]},
+            { day: 4, title: "Functions & Recursion Basics in Java", note: "", tasks: [
+                { desc: "Functions in Java", type: "Video", link: "https://www.youtube.com/watch?v=7-tZbexishA", resource: "CodeHelp Babbar" },
+                { desc: "Recursion Introduction", type: "Video", link: "https://www.youtube.com/watch?v=91ijDjJHhsM", resource: "Shradha Didi" },
+                { desc: "Java Recursion", type: "Article", link: "https://www.geeksforgeeks.org/recursion-in-java/", resource: "GFG" },
+                { desc: "Factorial using Recursion", type: "Easy Problem", link: "https://www.geeksforgeeks.org/java-program-for-factorial-of-a-number/", resource: "GFG" },
+            ]},
+            { day: 5, title: "String Manipulation in Java", note: "", tasks: [
+                { desc: "String Class in Java", type: "Video", link: "https://www.youtube.com/watch?v=6r-VoxuJ_Jc", resource: "Kunal Kushwaha" },
+                { desc: "String Functions & Manipulation", type: "Video", link: "https://www.youtube.com/watch?v=2r1YTGz67RI", resource: "CodeHelp Babbar" },
+                { desc: "Java Strings", type: "Article", link: "https://www.geeksforgeeks.org/java-string-class/", resource: "GFG" },
+                { desc: "Reverse a String", type: "Easy Problem", link: "https://www.geeksforgeeks.org/reverse-a-string-in-java/", resource: "GFG" },
+            ]},
+            { day: 6, title: "Searching & Sorting Algorithms in Java", note: "", tasks: [
+                { desc: "Linear & Binary Search", type: "Video", link: "https://www.youtube.com/watch?v=6KYe-TKj5v4", resource: "Kunal Kushwaha" },
+                { desc: "Bubble Sort in Java", type: "Video", link: "https://www.youtube.com/watch?v=dLSvCyDU6kI", resource: "Shradha Didi" },
+                { desc: "Searching & Sorting", type: "Article", link: "https://www.geeksforgeeks.org/searching-algorithms/", resource: "GFG" },
+                { desc: "Implement Binary Search", type: "Easy Problem", link: "https://www.geeksforgeeks.org/binary-search/", resource: "GFG" },
+            ]},
+            { day: 7, title: "Arrays - 2D Arrays & Matrix Operations", note: "", tasks: [
+                { desc: "2D Arrays in Java", type: "Video", link: "https://www.youtube.com/watch?v=tXE3JCZj2Mo", resource: "Shradha Didi" },
+                { desc: "Matrix Basics and Operations", type: "Video", link: "https://www.youtube.com/watch?v=n9f25x2iN4I", resource: "Kunal Kushwaha" },
+                { desc: "2D Arrays in Java", type: "Article", link: "https://www.geeksforgeeks.org/multidimensional-arrays-in-java/", resource: "GFG" },
+                { desc: "Sum of Matrix Diagonals", type: "Easy Problem", link: "https://www.geeksforgeeks.org/sum-of-diagonals-of-matrix/", resource: "GFG" },
+            ]},
+            { day: 8, title: "Object-Oriented Programming Basics: Classes & Objects", note: "", tasks: [
+                { desc: "OOP Concepts in Java", type: "Video", link: "https://www.youtube.com/watch?v=XBcKDWiNWtg", resource: "Kunal Kushwaha" },
+                { desc: "Classes and Objects Explained", type: "Video", link: "https://www.youtube.com/watch?v=dP24U8DEV9s", resource: "Shradha Didi" },
+                { desc: "OOP Concepts", type: "Article", link: "https://www.geeksforgeeks.org/object-oriented-programming-in-java/", resource: "GFG" },
+                { desc: "Create Simple Class & Object", type: "Practice", link: "https://www.geeksforgeeks.org/classes-objects-java/", resource: "GFG" },
+            ]},
+            { day: 9, title: "Inheritance and Polymorphism in Java", note: "", tasks: [
+                { desc: "Java Inheritance Explained", type: "Video", link: "https://www.youtube.com/watch?v=TTa-tNUt3KM", resource: "Kunal Kushwaha" },
+                { desc: "Polymorphism in Java", type: "Video", link: "https://www.youtube.com/watch?v=8n0HgYKtwKA", resource: "Shradha Didi" },
+                { desc: "Inheritance and Polymorphism", type: "Article", link: "https://www.geeksforgeeks.org/inheritance-in-java/", resource: "GFG" },
+                { desc: "Implement Inheritance", type: "Practice", link: "https://www.geeksforgeeks.org/inheritance-and-polymorphism-in-java/", resource: "GFG" },
+            ]},
+            { day: 10, title: "Linked List Basics in Java", note: "", tasks: [
+                { desc: "Singly Linked List", type: "Video", link: "https://www.youtube.com/watch?v=QcvoCMEphYc", resource: "Kunal Kushwaha" },
+                { desc: "Linked List Basics & Problems", type: "Video", link: "https://www.youtube.com/watch?v=_FqQUCsczHc", resource: "CodeHelp Babbar" },
+                { desc: "Linked List in Java", type: "Article", link: "https://www.geeksforgeeks.org/linked-list-in-java/", resource: "GFG" },
+                { desc: "Insert & Delete Node in Linked List", type: "Easy Problem", link: "https://www.geeksforgeeks.org/linked-list-set-2-inserting-a-node/", resource: "GFG" },
+            ]},
+            { day: 11, title: "Stack Data Structure in Java", note: "", tasks: [
+                { desc: "Stack in Java | Basic Implementation", type: "Video", link: "https://www.youtube.com/watch?v=udG77uWpMHE", resource: "Kunal Kushwaha" },
+                { desc: "Stack Explained with Examples", type: "Video", link: "https://www.youtube.com/watch?v=RZk_JchrHcw", resource: "Shradha Didi" },
+                { desc: "Stack Data Structure", type: "Article", link: "https://www.geeksforgeeks.org/stack-data-structure-introduction/", resource: "GFG" },
+                { desc: "Balanced Parentheses Using Stack", type: "Easy Problem", link: "https://www.geeksforgeeks.org/check-for-balanced-parentheses-in-an-expression/", resource: "GFG" },
+            ]},
+            { day: 12, title: "Queue Data Structure in Java", note: "", tasks: [
+                { desc: "Queue in Java | Basic Implementation", type: "Video", link: "https://www.youtube.com/watch?v=KTV_0N-0BPo", resource: "Kunal Kushwaha" },
+                { desc: "Queue Introduction and Examples", type: "Video", link: "https://www.youtube.com/watch?v=zI9r5x0_o_s", resource: "Shradha Didi" },
+                { desc: "Queue Data Structure", type: "Article", link: "https://www.geeksforgeeks.org/queue-data-structure/", resource: "GFG" },
+                { desc: "Implement Circular Queue", type: "Medium Problem", link: "https://www.geeksforgeeks.org/circular-queue-set-1-introduction-array-implementation/", resource: "GFG" },
+            ]},
+            { day: 13, title: "Recursion in Java - Basics and Examples", note: "", tasks: [
+                { desc: "Recursion Basics", type: "Video", link: "https://www.youtube.com/watch?v=zY1UwflQ7Xo", resource: "Kunal Kushwaha" },
+                { desc: "Recursion Explained with Examples", type: "Video", link: "https://www.youtube.com/watch?v=91ijDjJHhsM", resource: "Shradha Didi" },
+                { desc: "Recursion in Java", type: "Article", link: "https://www.geeksforgeeks.org/recursion-in-java/", resource: "GFG" },
+                { desc: "Factorial with Recursion", type: "Easy Problem", link: "https://www.geeksforgeeks.org/java-program-for-factorial-of-a-number/", resource: "GFG" },
+            ]},
+            { day: 14, title: "Linked List Operations in Java", note: "", tasks: [
+                { desc: "Singly Linked List Implementation", type: "Video", link: "https://www.youtube.com/watch?v=QcvoCMEphYc", resource: "Kunal Kushwaha" },
+                { desc: "Linked List Problems & Solutions", type: "Video", link: "https://www.youtube.com/watch?v=L-Jpsoi15W4", resource: "CodeHelp Babbar" },
+                { desc: "Linked List in Java", type: "Article", link: "https://www.geeksforgeeks.org/linked-list-in-java/", resource: "GFG" },
+                { desc: "Insert Node in Linked List", type: "Easy Problem", link: "https://www.geeksforgeeks.org/linked-list-set-2-inserting-a-node/", resource: "GFG" },
+            ]},
+            { day: 15, title: "Searching Algorithms in Java", note: "", tasks: [
+                { desc: "Linear Search", type: "Video", link: "https://www.youtube.com/watch?v=_HUL9Htq-PM", resource: "Kunal Kushwaha" },
+                { desc: "Binary Search Explanation", type: "Video", link: "https://www.youtube.com/watch?v=P3YID7liBug", resource: "Shradha Didi" },
+                { desc: "Searching Algorithms", type: "Article", link: "https://www.geeksforgeeks.org/searching-algorithms/", resource: "GFG" },
+                { desc: "Implement Binary Search", type: "Easy Problem", link: "https://www.geeksforgeeks.org/binary-search/", resource: "GFG" },
+            ]},
+            { day: 16, title: "Sorting Algorithms in Java", note: "", tasks: [
+                { desc: "Bubble Sort", type: "Video", link: "https://www.youtube.com/watch?v=Ty2zvNbv8bw", resource: "Kunal Kushwaha" },
+                { desc: "Quick Sort Explanation", type: "Video", link: "https://www.youtube.com/watch?v=PgBzjlCcFvc", resource: "Shradha Didi" },
+                { desc: "Sorting Algorithms", type: "Article", link: "https://www.geeksforgeeks.org/sorting-algorithms/", resource: "GFG" },
+                { desc: "Implement QuickSort", type: "Medium Problem", link: "https://www.geeksforgeeks.org/quick-sort/", resource: "GFG" },
+            ]},
+            { day: 17, title: "Trees in Java - Introduction & Traversal", note: "", tasks: [
+                { desc: "Binary Tree Introduction", type: "Video", link: "https://www.youtube.com/watch?v=oSWTXtMglKE", resource: "Kunal Kushwaha" },
+                { desc: "Tree Traversal Algorithms", type: "Video", link: "https://www.youtube.com/watch?v=lI62mXY5b_c", resource: "Shradha Didi" },
+                { desc: "Binary Tree", type: "Article", link: "https://www.geeksforgeeks.org/binary-tree-data-structure/", resource: "GFG" },
+                { desc: "Inorder, Preorder, Postorder Traversal", type: "Easy Problem", link: "https://www.geeksforgeeks.org/tree-traversals-inorder-preorder-and-postorder/", resource: "GFG" },
+            ]},
+            { day: 18, title: "Binary Search Tree (BST) in Java", note: "", tasks: [
+                { desc: "BST Introduction & Insertion", type: "Video", link: "https://www.youtube.com/watch?v=COZK7NATh4k", resource: "Kunal Kushwaha" },
+                { desc: "BST Search & Deletion", type: "Video", link: "https://www.youtube.com/watch?v=7tS54VyCG5s", resource: "Shradha Didi" },
+                { desc: "Binary Search Tree", type: "Article", link: "https://www.geeksforgeeks.org/binary-search-tree-data-structure/", resource: "GFG" },
+                { desc: "BST Search Implementation", type: "Easy Problem", link: "https://www.geeksforgeeks.org/binary-search-tree-set-1-search-and-insertion/", resource: "GFG" },
+            ]},
+            { day: 19, title: "Hashing in Java", note: "", tasks: [
+                { desc: "HashMap in Java", type: "Video", link: "https://www.youtube.com/watch?v=A0ICJpdx1N8", resource: "Kunal Kushwaha" },
+                { desc: "Hashing Explained", type: "Video", link: "https://www.youtube.com/watch?v=shs0KM3wKv8", resource: "Shradha Didi" },
+                { desc: "Hashing Data Structure", type: "Article", link: "https://www.geeksforgeeks.org/hashing-data-structure/", resource: "GFG" },
+                { desc: "Count Frequency Using HashMap", type: "Easy Problem", link: "https://www.geeksforgeeks.org/count-frequency-elements-array-java/", resource: "GFG" },
+            ]},
+            { day: 20, title: "Dynamic Programming - Introduction in Java", note: "", tasks: [
+                { desc: "Dynamic Programming Basics", type: "Video", link: "https://www.youtube.com/watch?v=gn5-4r5GeB8", resource: "Kunal Kushwaha" },
+                { desc: "DP Explained With Examples", type: "Video", link: "https://www.youtube.com/watch?v=qtJKt0HgF2U", resource: "Shradha Didi" },
+                { desc: "Introduction to Dynamic Programming", type: "Article", link: "https://www.geeksforgeeks.org/dynamic-programming/", resource: "GFG" },
+                { desc: "Fibonacci Number Using DP", type: "Easy Problem", link: "https://www.geeksforgeeks.org/program-for-nth-fibonacci-number/", resource: "GFG" },
+            ]},
+            { day: 21, title: "Stack & Queue Advanced Concepts in Java", note: "", tasks: [
+                { desc: "Stack Using Linked List in Java", type: "Video", link: "https://www.youtube.com/watch?v=c5sezSH5Lp4", resource: "CodeHelp Babbar" },
+                { desc: "Queue Implementation & Applications", type: "Video", link: "https://www.youtube.com/watch?v=zI9r5x0_o_s", resource: "Kunal Kushwaha" },
+                { desc: "Stack & Queue Comprehensive Guide", type: "Article", link: "https://www.geeksforgeeks.org/stack-data-structure-introduction/", resource: "GFG" },
+                { desc: "Implement Stack and Queue", type: "Medium Problem", link: "https://www.geeksforgeeks.org/stack-using-queue/", resource: "GFG" },
+            ]},
+            { day: 22, title: "Recursion Advanced - Backtracking in Java", note: "", tasks: [
+                { desc: "Backtracking Introduction & N-Queen Problem", type: "Video", link: "https://www.youtube.com/watch?v=xNhzN9-crt8", resource: "CodeHelp Babbar" },
+                { desc: "Recursion & Backtracking Explained", type: "Video", link: "https://www.youtube.com/watch?v=b7AYbpM5YrE", resource: "Shradha Didi" },
+                { desc: "Backtracking Algorithms", type: "Article", link: "https://www.geeksforgeeks.org/backtracking-algorithms/", resource: "GFG" },
+                { desc: "N-Queens Problem", type: "Hard Problem", link: "https://www.geeksforgeeks.org/n-queen-problem-backtracking-3/", resource: "GFG" },
+            ]},
+            { day: 23, title: "Trees - Binary Tree Advanced & Applications", note: "", tasks: [
+                { desc: "Tree Height, Diameter", type: "Video", link: "https://www.youtube.com/watch?v=YsTDR3jEcs0", resource: "Kunal Kushwaha" },
+                { desc: "Binary Tree Advanced Problems", type: "Video", link: "https://www.youtube.com/watch?v=Ag6YV1sAYf8", resource: "Abdul Bari" },
+                { desc: "Binary Tree Algorithms", type: "Article", link: "https://www.geeksforgeeks.org/binary-tree-data-structure/", resource: "GFG" },
+                { desc: "Diameter of Binary Tree", type: "Medium Problem", link: "https://www.geeksforgeeks.org/diameter-of-a-binary-tree/", resource: "GFG" },
+            ]},
+            { day: 24, title: "Binary Search Tree Advanced Operations", note: "", tasks: [
+                { desc: "BST Deletion & Traversal", type: "Video", link: "https://www.youtube.com/watch?v=7tS54VyCG5s", resource: "Shradha Didi" },
+                { desc: "BST Operations Explained", type: "Video", link: "https://www.youtube.com/watch?v=COZK7NATh4k", resource: "Kunal Kushwaha" },
+                { desc: "BST Operations", type: "Article", link: "https://www.geeksforgeeks.org/binary-search-tree-set-1-search-and-insertion/", resource: "GFG" },
+                { desc: "Deletion in BST", type: "Medium Problem", link: "https://www.geeksforgeeks.org/binary-search-tree-set-3-delete/", resource: "GFG" },
+            ]},
+            { day: 25, title: "Graph Basics & BFS in Java", note: "", tasks: [
+                { desc: "Graph Intro & Representation", type: "Video", link: "https://www.youtube.com/watch?v=09_LlHjoEiY", resource: "Kunal Kushwaha" },
+                { desc: "Breadth First Search", type: "Video", link: "https://www.youtube.com/watch?v=7-v1i9tq2Lg", resource: "Shradha Didi" },
+                { desc: "Graph Data Structure", type: "Article", link: "https://www.geeksforgeeks.org/graph-data-structure-and-algorithms/", resource: "GFG" },
+                { desc: "BFS Traversal", type: "Easy Problem", link: "https://www.geeksforgeeks.org/breadth-first-search-or-bfs-for-a-graph/", resource: "GFG" },
+            ]},
+            { day: 26, title: "Graph - Depth First Search (DFS) in Java", note: "", tasks: [
+                { desc: "Depth First Search (DFS) Explainer", type: "Video", link: "https://www.youtube.com/watch?v=7fujbpJ0LB4", resource: "Kunal Kushwaha" },
+                { desc: "DFS Example & Code", type: "Video", link: "https://www.youtube.com/watch?v=7-v1i9tq2Lg", resource: "Shradha Didi" },
+                { desc: "DFS Algorithm", type: "Article", link: "https://www.geeksforgeeks.org/depth-first-search-or-dfs-for-a-graph/", resource: "GFG" },
+                { desc: "DFS Traversal", type: "Easy Problem", link: "https://www.geeksforgeeks.org/depth-first-search-or-dfs-for-a-graph/", resource: "GFG" },
+            ]},
+            { day: 27, title: "HashMap & HashSet in Java", note: "", tasks: [
+                { desc: "HashMap Basics", type: "Video", link: "https://www.youtube.com/watch?v=hmqx6ShD5E8", resource: "CodeHelp Babbar" },
+                { desc: "HashSet Explained", type: "Video", link: "https://www.youtube.com/watch?v=8P0vl2K6b2Q", resource: "Shradha Didi" },
+                { desc: "Hashing Using HashMap & HashSet", type: "Article", link: "https://www.geeksforgeeks.org/java-util-hashmap-in-java/", resource: "GFG" },
+                { desc: "Frequency Count Using HashMap", type: "Easy Problem", link: "https://www.geeksforgeeks.org/count-frequency-elements-array-java/", resource: "GFG" },
+            ]},
+            { day: 28, title: "Sorting Algorithms - Merge Sort in Java", note: "", tasks: [
+                { desc: "Merge Sort Detailed", type: "Video", link: "https://www.youtube.com/watch?v=TzeBrDU-JaY", resource: "Kunal Kushwaha" },
+                { desc: "Merge Sort Explanation", type: "Video", link: "https://www.youtube.com/watch?v=XaqR3G_NVoo", resource: "Shradha Didi" },
+                { desc: "Merge Sort", type: "Article", link: "https://www.geeksforgeeks.org/merge-sort/", resource: "GFG" },
+                { desc: "Implement Merge Sort", type: "Medium Problem", link: "https://www.geeksforgeeks.org/merge-sort/", resource: "GFG" },
+            ]},
+            { day: 29, title: "Dynamic Programming - Fibonacci & Subset Sum Problems", note: "", tasks: [
+                { desc: "Fibonacci Using DP", type: "Video", link: "https://www.youtube.com/watch?v=2t5Ahxbv6ls", resource: "Kunal Kushwaha" },
+                { desc: "Subset Sum Problem", type: "Video", link: "https://www.youtube.com/watch?v=NyY12ejN3Xk", resource: "Shradha Didi" },
+                { desc: "DP Introduction", type: "Article", link: "https://www.geeksforgeeks.org/dynamic-programming/", resource: "GFG" },
+                { desc: "Subset Sum Problem", type: "Medium Problem", link: "https://www.geeksforgeeks.org/subset-sum-problem-dp-25/", resource: "GFG" },
+            ]},
+            { day: 30, title: "Dynamic Programming - Longest Common Subsequence (LCS)", note: "", tasks: [
+                { desc: "LCS Explained", type: "Video", link: "https://www.youtube.com/watch?v=7HXE6xapZnI", resource: "Kunal Kushwaha" },
+                { desc: "LCS Problem", type: "Video", link: "https://www.youtube.com/watch?v=8o2muCeZREw", resource: "Shradha Didi" },
+                { desc: "Longest Common Subsequence", type: "Article", link: "https://www.geeksforgeeks.org/longest-common-subsequence/", resource: "GFG" },
+                { desc: "LCS Implementation", type: "Medium Problem", link: "https://www.geeksforgeeks.org/longest-common-subsequence-dp-4/", resource: "GFG" },
+            ]},
+            { day: 31, title: "Trees - Binary Search Tree Operations Advanced", note: "", tasks: [
+                { desc: "BST Insertion, Deletion, Traversal", type: "Video", link: "https://www.youtube.com/watch?v=7tS54VyCG5s", resource: "Kunal Kushwaha" },
+                { desc: "Binary Search Tree Explained", type: "Video", link: "https://www.youtube.com/watch?v=COZK7NATh4k", resource: "Shradha Didi" },
+                { desc: "BST Operations", type: "Article", link: "https://www.geeksforgeeks.org/binary-search-tree-set-1-search-and-insertion/", resource: "GFG" },
+                { desc: "Delete Node in BST", type: "Medium Problem", link: "https://www.geeksforgeeks.org/binary-search-tree-set-3-delete/", resource: "GFG" },
+            ]},
+            { day: 32, title: "Graph Basics - Representation & Traversals", note: "", tasks: [
+                { desc: "Graph Representation & Basics", type: "Video", link: "https://www.youtube.com/watch?v=09_LlHjoEiY", resource: "Kunal Kushwaha" },
+                { desc: "BFS & DFS in Graphs", type: "Video", link: "https://www.youtube.com/watch?v=7fujbpJ0LB4", resource: "Shradha Didi" },
+                { desc: "Graphs Overview", type: "Article", link: "https://www.geeksforgeeks.org/graph-data-structure-and-algorithms/", resource: "GFG" },
+                { desc: "Implement BFS & DFS", type: "Easy Problem", link: "https://www.geeksforgeeks.org/breadth-first-search-or-bfs-for-a-graph/", resource: "GFG" },
+            ]},
+            { day: 33, title: "Graph Algorithms - Cycle Detection", note: "", tasks: [
+                { desc: "Cycle Detection in Directed Graphs", type: "Video", link: "https://www.youtube.com/watch?v=V6mKVRU1evU", resource: "Kunal Kushwaha" },
+                { desc: "Cycle Detection in Undirected Graphs", type: "Video", link: "https://www.youtube.com/watch?v=zZrzNqOVzGo", resource: "Shradha Didi" },
+                { desc: "Cycle Detection", type: "Article", link: "https://www.geeksforgeeks.org/detect-cycle-in-a-graph/", resource: "GFG" },
+                { desc: "Detect Cycle in Graph", type: "Medium Problem", link: "https://www.geeksforgeeks.org/detect-cycle-undirected-graph/", resource: "GFG" },
+            ]},
+            { day: 34, title: "Dynamic Programming - 0/1 Knapsack Problem", note: "", tasks: [
+                { desc: "0/1 Knapsack Explained", type: "Video", link: "https://www.youtube.com/watch?v=8LusJS5-AGo", resource: "Kunal Kushwaha" },
+                { desc: "Knapsack DP Problem", type: "Video", link: "https://www.youtube.com/watch?v=GZG1WEKcuR0", resource: "Shradha Didi" },
+                { desc: "0/1 Knapsack", type: "Article", link: "https://www.geeksforgeeks.org/0-1-knapsack-problem-dp-10/", resource: "GFG" },
+                { desc: "Knapsack Problem", type: "Medium Problem", link: "https://www.geeksforgeeks.org/0-1-knapsack-problem-dp-10/", resource: "GFG" },
+            ]},
+            { day: 35, title: "Trie Data Structure - Insertion & Search", note: "", tasks: [
+                { desc: "Trie Basics", type: "Video", link: "https://www.youtube.com/watch?v=qw6YK2HnO60", resource: "Kunal Kushwaha" },
+                { desc: "Trie Implementation in Java", type: "Video", link: "https://www.youtube.com/watch?v=V3_W1QJd_5E", resource: "CodeHelp Babbar" },
+                { desc: "Trie Data Structure", type: "Article", link: "https://www.geeksforgeeks.org/trie-insert-and-search/", resource: "GFG" },
+                { desc: "Implement Trie", type: "Medium Problem", link: "https://www.geeksforgeeks.org/implement-trie-prefix-tree/", resource: "GFG" },
+            ]},
+            { day: 36, title: "Segment Trees - Construction & Query", note: "", tasks: [
+                { desc: "Segment Tree Introduction", type: "Video", link: "https://www.youtube.com/watch?v=rJHnHHAOXBY", resource: "Kunal Kushwaha" },
+                { desc: "Segment Tree Sum Query", type: "Video", link: "https://www.youtube.com/watch?v=ZB7BZMhfPgk", resource: "Shradha Didi" },
+                { desc: "Segment Tree", type: "Article", link: "https://www.geeksforgeeks.org/segment-tree-set-1-sum-of-given-range/", resource: "GFG" },
+                { desc: "Range Sum Query Using Segment Tree", type: "Medium Problem", link: "https://www.geeksforgeeks.org/segment-tree-set-1-sum-of-given-range/", resource: "GFG" },
+            ]},
+            { day: 37, title: "Segment Trees - Lazy Propagation", note: "", tasks: [
+                { desc: "Lazy Propagation in Segment Tree", type: "Video", link: "https://www.youtube.com/watch?v=6z2NS_oDRfE", resource: "Kunal Kushwaha" },
+                { desc: "Lazy Propagation Explained", type: "Video", link: "https://www.youtube.com/watch?v=jqkTZ8Wrb0E", resource: "Shradha Didi" },
+                { desc: "Lazy Propagation", type: "Article", link: "https://www.geeksforgeeks.org/lazy-propagation-in-segment-tree/", resource: "GFG" },
+                { desc: "Range Update Using Lazy Propagation", type: "Hard Problem", link: "https://www.geeksforgeeks.org/segment-tree-set-3-range-updates/", resource: "GFG" },
+            ]},
+            { day: 38, title: "Bit Manipulation in Java", note: "", tasks: [
+                { desc: "Bit Manipulation Basics", type: "Video", link: "https://www.youtube.com/watch?v=ZStcrzVyFnc", resource: "Kunal Kushwaha" },
+                { desc: "Bit Manipulation Tricks", type: "Video", link: "https://www.youtube.com/watch?v=6JjQEp9mCkA", resource: "Shradha Didi" },
+                { desc: "Bit Manipulation", type: "Article", link: "https://www.geeksforgeeks.org/bitwise-operators-in-c-cpp/", resource: "GFG" },
+                { desc: "Count Set Bits", type: "Easy Problem", link: "https://www.geeksforgeeks.org/count-set-bits-in-an-integer/", resource: "GFG" },
+            ]},
+            { day: 39, title: "Advanced DP - Longest Increasing Subsequence (LIS)", note: "", tasks: [
+                { desc: "LIS Explained", type: "Video", link: "https://www.youtube.com/watch?v=CE2b_-XfVDk", resource: "Kunal Kushwaha" },
+                { desc: "LIS with Binary Search Approach", type: "Video", link: "https://www.youtube.com/watch?v=NrfdfTs9wUE", resource: "Shradha Didi" },
+                { desc: "Longest Increasing Subsequence", type: "Article", link: "https://www.geeksforgeeks.org/longest-increasing-subsequence-dp-3/", resource: "GFG" },
+                { desc: "Implement LIS", type: "Medium Problem", link: "https://www.geeksforgeeks.org/longest-increasing-subsequence-dp-3/", resource: "GFG" },
+            ]},
+            { day: 40, title: "DP Practice - Edit Distance Problem", note: "", tasks: [
+                { desc: "Edit Distance Explained", type: "Video", link: "https://www.youtube.com/watch?v=We3YDTzNXEk", resource: "Kunal Kushwaha" },
+                { desc: "Edit Distance Solution", type: "Video", link: "https://www.youtube.com/watch?v=0zYxCzEwiKM", resource: "Shradha Didi" },
+                { desc: "Edit Distance Problem", type: "Article", link: "https://www.geeksforgeeks.org/edit-distance-dp-5/", resource: "GFG" },
+                { desc: "Edit Distance", type: "Hard Problem", link: "https://leetcode.com/problems/edit-distance/", resource: "LeetCode" },
+            ]},
+            { day: 41, title: "Graph Algorithms – Shortest Path with Dijkstra", note: "", tasks: [
+                { desc: "Dijkstra’s Algorithm Using Priority Queue", type: "Video", link: "https://www.youtube.com/watch?v=V6H1qAeB-l4", resource: "Love Babbar" },
+                { desc: "Dijkstra’s Algorithm Explained", type: "Video", link: "https://www.youtube.com/watch?v=rZ41y93P2Qo", resource: "Kunal Kushwaha" },
+                { desc: "Dijkstra’s Algorithm", type: "Article", link: "https://www.geeksforgeeks.org/dijkstras-shortest-path-algorithm-greedy-algo-7/", resource: "GFG" },
+                { desc: "Implement Dijkstra", type: "Medium Problem", link: "https://www.geeksforgeeks.org/dijkstras-shortest-path-algorithm-greedy-algo-7/", resource: "GFG" },
+            ]},
+            { day: 42, title: "Graph – Floyd Warshall & All-Pairs Shortest Paths", note: "", tasks: [
+                { desc: "Floyd Warshall Algorithm", type: "Video", link: "https://www.youtube.com/watch?v=oNI0rf2P9gE", resource: "Tushar Roy" },
+                { desc: "Shortest Path with Floyd Warshall", type: "Video", link: "https://www.youtube.com/watch?v=UmnCZ7-9yDY", resource: "Tech With Kunal" },
+                { desc: "Floyd Warshall Algorithm", type: "Article", link: "https://www.geeksforgeeks.org/finding-shortest-path-between-any-two-nodes-using-floyd-warshall-algorithm/", resource: "GFG" },
+                { desc: "Floyd Warshall", type: "Medium Problem", link: "https://www.geeksforgeeks.org/floyd-warshall-algorithm-dp-16/", resource: "GFG" },
+            ]},
+            { day: 43, title: "Graph – Topological Sorting & DAG Problems", note: "", tasks: [
+                { desc: "Topological Sort", type: "Video", link: "https://www.youtube.com/watch?v=ddTC4Zovtbc", resource: "CodeHelp Babbar" },
+                { desc: "Shortest Path in DAG", type: "Video", link: "https://www.youtube.com/watch?v=P_bfy0LOU5g", resource: "Love Babbar" },
+                { desc: "Topological Sorting", type: "Article", link: "https://www.geeksforgeeks.org/topological-sorting/", resource: "GFG" },
+                { desc: "Topological Sort", type: "Medium Problem", link: "https://www.geeksforgeeks.org/topological-sorting-indegree-based-solution/", resource: "GFG" },
+            ]},
+            { day: 44, title: "Minimum Spanning Tree (MST) – Prim’s and Kruskal’s", note: "", tasks: [
+                { desc: "Prim’s Algorithm", type: "Video", link: "https://www.youtube.com/watch?v=kXiqvMykeJA", resource: "Love Babbar" },
+                { desc: "Kruskal’s Algorithm", type: "Video", link: "https://www.youtube.com/watch?v=71UQH7Pr9kU", resource: "Kunal Kushwaha" },
+                { desc: "Minimum Spanning Tree", type: "Article", link: "https://www.geeksforgeeks.org/minimum-spanning-tree/", resource: "GFG" },
+                { desc: "Kruskal’s Implementation", type: "Medium Problem", link: "https://www.geeksforgeeks.org/kruskals-minimum-spanning-tree-algorithm-greedy-algo-2/", resource: "GFG" },
+            ]},
+            { day: 45, title: "Disjoint Set Union (DSU) and Union–Find", note: "", tasks: [
+                { desc: "DSU (Data Structure)", type: "Video", link: "https://www.youtube.com/watch?v=66KtN8uJruE", resource: "Love Babbar" },
+                { desc: "DSU Implementation", type: "Video", link: "https://www.youtube.com/watch?v=1r8cNzzmgpA", resource: "CodeHelp Babbar" },
+                { desc: "Union–Find", type: "Article", link: "https://www.geeksforgeeks.org/disjoint-set-data-structures/", resource: "GFG" },
+                { desc: "Union Find", type: "Medium Problem", link: "https://www.geeksforgeeks.org/union-find/", resource: "GFG" },
+            ]},
+            { day: 46, title: "Backtracking – Rat in a Maze & Sudoku Solver", note: "", tasks: [
+                { desc: "Rat in a Maze Problem", type: "Video", link: "https://www.youtube.com/watch?v=Pl7mMcBm2b8", resource: "Shradha Didi" },
+                { desc: "Sudoku Solver", type: "Video", link: "https://www.youtube.com/watch?v=S4K25wZp7rM", resource: "CodeHelp Babbar" },
+                { desc: "Backtracking in Java", type: "Article", link: "https://www.geeksforgeeks.org/backtracking-to-solve-java-problems/", resource: "GFG" },
+                { desc: "Rat in a Maze", type: "Hard Problem", link: "https://www.geeksforgeeks.org/rat-in-a-maze-backtracking-2/", resource: "GFG" },
+            ]},
+            { day: 47, title: "Dynamic Programming – Matrix Chain Multiplication (MCM)", note: "", tasks: [
+                { desc: "Matrix Chain Multiplication", type: "Video", link: "https://www.youtube.com/watch?v=GXg0yX4RaNM", resource: "Kunal Kushwaha" },
+                { desc: "MCM Detailed Explanation", type: "Video", link: "https://www.youtube.com/watch?v=vgLJ7ru9-po", resource: "Shradha Didi" },
+                { desc: "Matrix Chain Multiplication", type: "Article", link: "https://www.geeksforgeeks.org/matrix-chain-multiplication-dp-8/", resource: "GFG" },
+                { desc: "MCM", type: "Hard Problem", link: "https://www.geeksforgeeks.org/matrix-chain-multiplication-dp-8/", resource: "GFG" },
+            ]},
+            { day: 48, title: "Dynamic Programming – House Robber & Climbing Stairs", note: "", tasks: [
+                { desc: "House Robber", type: "Video", link: "https://www.youtube.com/watch?v=73r3KWiEvyk", resource: "Kunal Kushwaha" },
+                { desc: "Climbing Stairs DP", type: "Video", link: "https://www.youtube.com/watch?v=Y0ZqKpToTic", resource: "Shradha Didi" },
+                { desc: "Dynamic Programming", type: "Article", link: "https://www.geeksforgeeks.org/dynamic-programming/", resource: "GFG" },
+                { desc: "Climbing Stairs", type: "Easy Problem", link: "https://leetcode.com/problems/climbing-stairs/", resource: "LeetCode" },
+            ]},
+            { day: 49, title: "Dynamic Programming – Partition & Subset Problems", note: "", tasks: [
+                { desc: "Equal Subset Partition (DP)", type: "Video", link: "https://www.youtube.com/watch?v=bEv6CCg2BC8", resource: "Love Babbar" },
+                { desc: "Target Sum DP", type: "Video", link: "https://www.youtube.com/watch?v=YHzM8jCfDmk", resource: "Shradha Didi" },
+                { desc: "Subset Sum", type: "Article", link: "https://www.geeksforgeeks.org/subset-sum-problem-dp-25/", resource: "GFG" },
+                { desc: "Equal Subset Sum Partition", type: "Medium Problem", link: "https://www.geeksforgeeks.org/partition-problem-dp-18/", resource: "GFG" },
+            ]},
+            { day: 50, title: "Revision – Graph & DP Core Practice", note: "", tasks: [
+                { desc: "DSA Revision for Placements", type: "Video", link: "https://www.youtube.com/watch?v=ogzwPZoohQE", resource: "Love Babbar" },
+                { desc: "Revise Java DSA Concepts", type: "Video", link: "https://www.youtube.com/watch?v=UmnCZ7-9yDY", resource: "Kunal Kushwaha" },
+                { desc: "Solve 10 Graph & 10 DP problems on LeetCode (Easy–Medium)", type: "Practice", link: "https://leetcode.com/problemset/all/", resource: "LeetCode" },
+                { desc: "Focus on debugging and code optimization.", type: "Revision", link: "#", resource: "Self-Review" },
+            ]},
+        ];
+
+        // Merge Java-specific Days 1-50 with the common Days 51-60 from the C++ schedule
+        const COMMON_ADVANCED_SCHEDULE = DEFAULT_SCHEDULE_CPP.slice(50);
+        DEFAULT_SCHEDULE_JAVA.push(...COMMON_ADVANCED_SCHEDULE);
+        
+        // Initialize the local schedule variables
+        schedule_cpp = DEFAULT_SCHEDULE_CPP;
+        schedule_java = DEFAULT_SCHEDULE_JAVA;
+
+        // --- End DSA Schedule Data ---
+
+        // --- Local Storage Functions (Replaced Firebase Logic) ---
+
+        /**
+         * Loads all data from localStorage (simulating a database fetch).
+         */
+        function loadLocalData() {
+            try {
+                const progressJson = localStorage.getItem(LOCAL_PROGRESS_KEY);
+                const customJson = localStorage.getItem(LOCAL_CUSTOM_SCHEDULE_KEY);
+                
+                // Progress is stored per day (we simulate a map of day -> {tasks: [], note: ''})
+                const savedProgressMap = progressJson ? JSON.parse(progressJson) : {};
+                
+                // Custom schedule is stored as an array of day objects
+                customSchedule = customJson ? JSON.parse(customJson) : [];
+                
+                return { savedProgressMap };
+            } catch (error) {
+                console.error("Error loading data from localStorage:", error);
+                return { savedProgressMap: {} };
+            }
+        }
+
+        /**
+         * Saves the current progress map and custom schedule to localStorage.
+         */
+        function saveLocalData(progressMap, customDays) {
+            try {
+                localStorage.setItem(LOCAL_PROGRESS_KEY, JSON.stringify(progressMap));
+                localStorage.setItem(LOCAL_CUSTOM_SCHEDULE_KEY, JSON.stringify(customDays));
+            } catch (error) {
+                console.error("Error saving data to localStorage:", error);
+            }
+        }
+
+        // --- Language Toggle Logic ---
+
+        /**
+         * Switches the displayed language and reloads the schedule.
+         * @param {string} lang 'cpp' or 'java'
+         */
+        window.switchLanguage = function(lang) {
+            if (currentLanguage === lang) return;
+
+            currentLanguage = lang;
+            
+            // Update button styles
+            document.querySelectorAll('#language-toggle button').forEach(button => {
+                if (button.dataset.lang === lang) {
+                    button.classList.add('toggle-active', 'bg-indigo-500', 'text-white', 'hover:bg-indigo-400');
+                    button.classList.remove('text-indigo-200', 'hover:text-white', 'hover:bg-indigo-600');
+                } else {
+                    button.classList.remove('toggle-active', 'bg-indigo-500', 'text-white', 'hover:bg-indigo-400');
+                    button.classList.add('text-indigo-200', 'hover:text-white', 'hover:bg-indigo-600');
+                }
+            });
+            
+            // Reload progress with the new language schedule structure
+            loadScheduleProgress();
+        }
+
+        /**
+         * NEW: Downloads a JSON report of the user's progress and custom schedule.
+         */
+        window.downloadReport = function() {
+            try {
+                const progressJson = localStorage.getItem(LOCAL_PROGRESS_KEY);
+                const customJson = localStorage.getItem(LOCAL_CUSTOM_SCHEDULE_KEY);
+
+                const reportData = {
+                    language: currentLanguage,
+                    reportGeneratedOn: new Date().toISOString(),
+                    progress: progressJson ? JSON.parse(progressJson) : {},
+                    customSchedule: customJson ? JSON.parse(customJson) : []
+                };
+
+                const jsonString = JSON.stringify(reportData, null, 2);
+                const blob = new Blob([jsonString], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `dsa_roadmap_report_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error("Error generating report:", error);
+                alert("Could not generate the report. Please check the console for errors.");
+            }
+        }
+
+        /**
+         * NEW: Gets the start date from localStorage or sets it to today if not found.
+         */
+        function getOrSetStartDate() {
+            let savedStartDate = localStorage.getItem(LOCAL_START_DATE_KEY);
+            if (!savedStartDate) {
+                const today = new Date();
+                // Format to YYYY-MM-DD
+                const year = today.getFullYear();
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const day = String(today.getDate()).padStart(2, '0');
+                savedStartDate = `${year}-${month}-${day}`;
+                localStorage.setItem(LOCAL_START_DATE_KEY, savedStartDate);
+            }
+            startDateStr = savedStartDate;
+        }
+
+        // --- Utility Functions ---
+
+        /**
+         * Calculates the current day number in the schedule based on the start date.
+         */
+        function calculateCurrentScheduleDay() {
+            if (!startDateStr) return 1; // Guard against uninitialized start date
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); 
+            const startDate = new Date(startDateStr);
+            startDate.setHours(0, 0, 0, 0); 
+
+            const diffTime = today.getTime() - startDate.getTime();
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            
+            const currentDay = diffDays + 1;
+            
+            return Math.max(1, currentDay); 
+        }
+
+        /**
+         * Resets all progress by clearing localStorage entries.
+         */
+        window.resetProgress = function() {
+            window.hideResetModal();
+            document.getElementById('status-message').classList.remove('hidden');
+            document.getElementById('status-text').textContent = "Resetting progress...";
+
+            localStorage.removeItem(LOCAL_PROGRESS_KEY);
+            localStorage.removeItem(LOCAL_CUSTOM_SCHEDULE_KEY);
+            localStorage.removeItem(LOCAL_START_DATE_KEY); // Also reset the start date
+            
+            // Reset local memory state
+            customSchedule = [];
+
+            // Reload the schedule to reflect the reset
+            loadScheduleProgress(); 
+            
+            document.getElementById('status-text').textContent = "Progress and custom schedule successfully reset.";
+            setTimeout(() => document.getElementById('status-message').classList.add('hidden'), 3000);
+        }
+        
+        /**
+         * Saves the custom schedule data to localStorage.
+         */
+        window.saveCustomSchedule = async function(event) {
+            event.preventDefault();
+            
+            const form = document.getElementById('schedule-form');
+            const daySections = form.querySelectorAll('.day-section');
+            const newCustomDays = [];
+            let isValid = true;
+            
+            daySections.forEach(section => {
+                const dayInput = section.querySelector('input[name="day-number"]');
+                const titleInput = section.querySelector('input[name="day-title"]');
+                const tasksContainer = section.querySelector('.tasks-container');
+                const taskRows = tasksContainer.querySelectorAll('.task-row');
+                
+                const day = parseInt(dayInput.value);
+                const title = titleInput.value.trim();
+
+                if (!day || !title) {
+                    // Replaced alert()
+                    document.getElementById('status-text').textContent = `Error: Day ${day || '[Missing]'} or Title is empty.`;
+                    document.getElementById('status-message').classList.remove('hidden');
+                    setTimeout(() => document.getElementById('status-message').classList.add('hidden'), 5000);
+
+                    isValid = false;
+                    return;
+                }
+                
+                const tasks = [];
+                taskRows.forEach(row => {
+                    const desc = row.querySelector('input[name="task-desc"]').value.trim();
+                    const type = row.querySelector('select[name="task-type"]').value;
+                    const link = row.querySelector('input[name="task-link"]').value.trim();
+                    const resource = row.querySelector('input[name="task-resource"]').value.trim();
+                    
+                    if (desc) {
+                        tasks.push({ desc, type, link, resource });
+                    }
+                });
+
+                if (tasks.length > 0) {
+                    newCustomDays.push({ day, title, tasks, note: "" }); 
+                }
+            });
+
+            if (!isValid) return;
+            
+            // Update local memory state for custom schedule
+            customSchedule = newCustomDays;
+            
+            // Save custom schedule and current progress (for safety)
+            const progressMap = mergedSchedule.reduce((map, d) => {
+                 map[d.day] = { 
+                     day: d.day, 
+                     tasks: d.tasks.map(t => ({ completed: t.completed })),
+                     note: d.note || "" 
+                 };
+                 return map;
+             }, {});
+            saveLocalData(progressMap, customSchedule);
+            
+            window.hideCustomizeModal();
+            document.getElementById('status-text').textContent = "Custom schedule saved successfully! UI updating...";
+            document.getElementById('status-message').classList.remove('hidden');
+            setTimeout(() => document.getElementById('status-message').classList.add('hidden'), 3000);
+            
+            loadScheduleProgress(); // Reload the merged schedule to reflect changes
+        }
+        
+        /**
+         * Saves the completion status of a single task to localStorage.
+         */
+        async function saveTaskCompletion(day, taskIndex, isCompleted) {
+            // 1. Update the local mergedSchedule state
+            const dayEntry = mergedSchedule.find(d => d.day === day);
+
+            if (!dayEntry) {
+                console.error(`Attempted to save progress for non-existent Day ${day}`);
+                return;
+            }
+            
+            // Find the task in the mergedSchedule and update its completion status
+            const taskToSave = dayEntry.tasks[taskIndex];
+            if (taskToSave) {
+                taskToSave.completed = isCompleted;
+            }
+            
+            // 2. Rebuild the progress map from mergedSchedule for saving
+            const progressMap = mergedSchedule.reduce((map, d) => {
+                // Only save tasks and note (minimal progress info)
+                map[d.day] = { 
+                    day: d.day, 
+                    tasks: d.tasks.map(t => ({ completed: t.completed })),
+                    note: d.note || "" 
+                };
+                return map;
+            }, {});
+
+            // 3. Save to local storage
+            saveLocalData(progressMap, customSchedule);
+            
+            // 4. Update Dashboard (UI update handled by calling this)
+            calculateAndRenderDashboard();
+        }
+
+        let noteSaveTimer; // Timer for debouncing note saves
+
+        /**
+         * Saves the note for a specific day to localStorage.
+         */
+        window.saveDayNote = function(day) {
+            const textarea = document.getElementById(`day-note-${day}`);
+            const note = textarea.value;
+            
+            // Update local state (mergedSchedule)
+            const dayEntry = mergedSchedule.find(d => d.day === day);
+            if (dayEntry) {
+                dayEntry.note = note;
+            } else {
+                 console.error(`Attempted to save note for non-existent Day ${day}`);
+                 return;
+            }
+
+            // Debounce the save operation
+            clearTimeout(noteSaveTimer);
+            noteSaveTimer = setTimeout(() => {
+                // Rebuild the progress map from mergedSchedule for saving
+                const progressMap = mergedSchedule.reduce((map, d) => {
+                    map[d.day] = { 
+                        day: d.day, 
+                        tasks: d.tasks.map(t => ({ completed: t.completed })),
+                        note: d.note || "" 
+                    };
+                    return map;
+                }, {});
+                
+                saveLocalData(progressMap, customSchedule);
+                // Console log is fine here, no need for UI status update on every note save
+            }, 1000); 
+        }
+
+        /**
+         * Loads the full schedule structure and merges it with local progress data.
+         */
+        function loadScheduleProgress() {
+            const { savedProgressMap } = loadLocalData();
+            
+            // Select the base schedule based on the current language
+            const baseSchedule = currentLanguage === 'java' ? schedule_java : schedule_cpp;
+
+            // Merge Default (Language-specific) and Custom Schedules
+            let tempMerged = [...baseSchedule]; 
+            
+            // 1. Incorporate custom days
+            customSchedule.forEach(customDay => {
+                 const index = tempMerged.findIndex(d => d.day === customDay.day);
+                 if (index !== -1) {
+                     // Override base day with custom day
+                     tempMerged[index] = customDay;
+                 } else {
+                     // Add new custom day 
+                     tempMerged.push(customDay);
+                 }
+            });
+            
+            // Sort by day number
+            tempMerged.sort((a, b) => a.day - b.day);
+            
+            // 2. Merge Progress Status
+            mergedSchedule = tempMerged.map(day => {
+                const savedDayProgress = savedProgressMap[day.day];
+                
+                let finalTasks = day.tasks.map(task => ({ ...task, completed: false }));
+                
+                if (savedDayProgress && savedDayProgress.tasks) {
+                    finalTasks = day.tasks.map((task, index) => {
+                        const savedTask = savedDayProgress.tasks[index];
+                        return {
+                            ...task,
+                            completed: savedTask ? savedTask.completed || false : false
+                        };
+                    });
+                }
+                
+                return { 
+                    ...day, 
+                    tasks: finalTasks, 
+                    note: savedDayProgress?.note || day.note || "" 
+                };
+            });
+
+            calculateAndRenderDashboard();
+            renderSchedule(mergedSchedule);
+            document.getElementById('status-message').classList.add('hidden');
+        }
+        
+        /**
+         * Calculates and updates the Progress Dashboard and Streak Counter.
+         */
+        function calculateAndRenderDashboard() {
+            const currentDayNumber = calculateCurrentScheduleDay();
+
+            let totalTasksAll = 0;
+            let completedTasksAll = 0;
+            let currentStreak = 0;
+            
+            // 1. Calculate Total Progress
+            mergedSchedule.forEach(dayEntry => {
+                totalTasksAll += dayEntry.tasks.length;
+                completedTasksAll += dayEntry.tasks.filter(t => t.completed).length;
+            });
+            
+            // 2. Calculate Streak 
+            let consecutiveCompleteDays = 0;
+
+            for (let i = currentDayNumber - 1; i >= 0; i--) {
+                const dayEntry = mergedSchedule.find(d => d.day === i + 1);
+                
+                if (!dayEntry) {
+                    break; 
+                }
+
+                const isDayComplete = dayEntry.tasks.length > 0 && dayEntry.tasks.every(t => t.completed);
+
+                if (i + 1 < currentDayNumber) {
+                    if (isDayComplete) {
+                        consecutiveCompleteDays++;
+                    } else {
+                        consecutiveCompleteDays = 0;
+                        break; 
+                    }
+                } else if (i + 1 === currentDayNumber) {
+                    if (isDayComplete) {
+                        consecutiveCompleteDays++;
+                    }
+                }
+            }
+            
+            currentStreak = consecutiveCompleteDays;
+
+            // 3. Render Dashboard
+            const completionRate = totalTasksAll > 0 ? (completedTasksAll / totalTasksAll * 100).toFixed(0) : 0;
+            
+            document.getElementById('total-progress-text').textContent = `${completionRate}%`;
+            document.getElementById('total-progress-count').textContent = `${completedTasksAll}/${totalTasksAll} Tasks`;
+            document.getElementById('current-streak').textContent = currentStreak;
+            document.getElementById('days-scheduled').textContent = mergedSchedule.length;
+            
+            // 4. Render Progress Ring
+            const progressArc = document.getElementById('progress-ring-arc');
+            if (progressArc) {
+                const offset = CIRCUMFERENCE - (completionRate / 100) * CIRCUMFERENCE;
+                progressArc.style.strokeDasharray = CIRCUMFERENCE;
+                progressArc.style.strokeDashoffset = offset;
+            }
+        }
+
+
+        
+        // --- Customization UI Logic (Helper functions removed for brevity, keeping only renderSettingsForm) ---
+        
+        window.showCustomizeModal = function() {
+            document.getElementById('customize-modal').style.display = 'flex';
+            renderSettingsForm();
+        }
+
+        window.hideCustomizeModal = function() {
+            document.getElementById('customize-modal').style.display = 'none';
+        }
+        
+        function updateCustomizationControls() {
+            const container = document.getElementById('days-container');
+            const daySections = container.querySelectorAll('.day-section');
+            const addButton = document.getElementById('add-day-btn');
+            const limitMessage = document.getElementById('customize-limit-message');
+            
+            if (!addButton || !limitMessage) return; 
+            
+            const currentCount = daySections.length;
+            
+            if (currentCount >= MAX_CUSTOM_DAYS) {
+                addButton.disabled = true;
+                addButton.classList.add('opacity-50', 'cursor-not-allowed');
+                limitMessage.classList.remove('hidden');
+            } else {
+                addButton.disabled = false;
+                addButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                limitMessage.classList.add('hidden');
+            }
+        }
+
+
+        function renderSettingsForm() {
+            const container = document.getElementById('days-container');
+            container.innerHTML = '';
+            
+            const daysToEdit = mergedSchedule.filter(d => d.day >= 15 && d.day <= 14 + MAX_CUSTOM_DAYS);
+
+            if (daysToEdit.length === 0) {
+                 window.addDaySection(
+                     Math.max(...mergedSchedule.map(d => d.day)) + 1 || 15, // Calculate next logical day
+                     "New Topic / Custom Day"
+                 );
+            } else {
+                 daysToEdit.forEach(dayData => {
+                     window.addDaySection(dayData.day, dayData.title, dayData.tasks);
+                 });
+            }
+            
+            updateCustomizationControls(); 
+        }
+        
+        function getTaskRowHTML(desc = '', type = 'Video', link = '', resource = '') {
+            const rowId = `task-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+            return `
+                <div class="task-row flex flex-col md:flex-row gap-2 bg-gray-50 p-3 rounded-lg border border-gray-200" data-row-id="${rowId}">
+                    <input type="text" name="task-desc" placeholder="Task Description (e.g., Reverse String using Stack)" value="${desc}" class="flex-1 p-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm">
+                    <select name="task-type" class="p-2 border rounded-md text-sm w-32">
+                        <option value="Video" ${type === 'Video' ? 'selected' : ''}>Video</option>
+                        <option value="Article" ${type === 'Article' ? 'selected' : ''}>Article</option>
+                        <option value="Easy Problem" ${type === 'Easy Problem' ? 'selected' : ''}>Easy Problem</option>
+                        <option value="Medium Problem" ${type === 'Medium Problem' ? 'selected' : ''}>Medium Problem</option>
+                        <option value="Hard Problem" ${type === 'Hard Problem' ? 'selected' : ''}>Hard Problem</option>
+                        <option value="Revision" ${type === 'Revision' ? 'selected' : ''}>Revision</option>
+                        <option value="Break" ${type === 'Break' ? 'selected' : ''}>Break</option>
+                        <option value="Practice" ${type === 'Practice' ? 'selected' : ''}>Practice</option>
+                    </select>
+                    <input type="text" name="task-resource" placeholder="Resource Name (e.g., NeetCode)" value="${resource}" class="w-32 p-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm">
+                    <input type="url" name="task-link" placeholder="Link (URL)" value="${link}" class="flex-1 p-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm">
+                    <button type="button" onclick="window.removeTaskRow(this)" class="p-2 bg-red-100 text-red-600 rounded-md hover:bg-red-200 transition text-sm flex-shrink-0 w-8 h-8 flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 10-2 0v6a1 1 0 102 0V8z" clip-rule="evenodd" /></svg>
+                    </button>
+                </div>
+            `;
+        }
+        
+        window.addTaskRow = function(button) {
+            const tasksContainer = button.closest('.day-section').querySelector('.tasks-container');
+            tasksContainer.insertAdjacentHTML('beforeend', getTaskRowHTML());
+        }
+
+        window.removeTaskRow = function(button) {
+            button.closest('.task-row').remove();
+        }
+        
+        window.removeDaySection = function(button) {
+            button.closest('.day-section').remove();
+            updateCustomizationControls(); 
+        }
+
+        window.addDaySection = function(day = null, title = '', tasks = []) {
+            const container = document.getElementById('days-container');
+            const existingDaySections = container.querySelectorAll('.day-section');
+            
+            if (existingDaySections.length >= MAX_CUSTOM_DAYS && day === null) {
+                return;
+            }
+            
+            let nextDay = day;
+            
+            if (nextDay === null) {
+                 const existingDayInputs = container.querySelectorAll('input[name="day-number"]');
+                 const currentMaxDay = Array.from(existingDayInputs)
+                     .map(input => parseInt(input.value))
+                     .filter(val => !isNaN(val))
+                     .reduce((max, val) => Math.max(max, val), schedule_cpp.length); 
+                 nextDay = currentMaxDay + 1;
+                 title = "New Topic / Custom Day"; 
+            }
+
+            const sectionId = `day-section-${nextDay}-${Date.now()}`;
+
+            let tasksHTML = tasks.map(t => getTaskRowHTML(t.desc, t.type, t.link, t.resource)).join('');
+            if (tasks.length === 0 && nextDay !== null) {
+                tasksHTML = getTaskRowHTML();
+            }
+
+            const html = `
+                <div class="day-section bg-gray-100 p-5 rounded-xl shadow-lg border border-indigo-200" id="${sectionId}">
+                    <div class="flex justify-between items-center mb-4">
+                        <h4 class="text-xl font-bold text-indigo-600">Day Setup</h4>
+                        <button type="button" onclick="window.removeDaySection(this)" class="text-red-500 hover:text-red-700 font-bold">
+                            Remove Day
+                        </button>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <label class="block">
+                            <span class="text-gray-700 text-sm font-medium">Day Number (e.g., 45)</span>
+                            <input type="number" name="day-number" value="${nextDay || ''}" min="1" class="mt-1 block w-full p-2 border rounded-md text-base bg-white" required>
+                        </label>
+                        <label class="block col-span-2">
+                            <span class="text-gray-700 text-sm font-medium">Day Title (e.g., Graphs and Heaps)</span>
+                            <input type="text" name="day-title" value="${title}" class="mt-1 block w-full p-2 border rounded-md text-base bg-white" required>
+                        </label>
+                    </div>
+
+                    <div class="mb-4">
+                        <h5 class="text-lg font-semibold text-gray-700 mb-2">Tasks for Day ${nextDay || '...'}</h5>
+                        <div class="tasks-container space-y-2">
+                            ${tasksHTML}
+                        </div>
+                    </div>
+                    
+                    <div class="text-right">
+                        <button type="button" onclick="window.addTaskRow(this)" class="px-3 py-1 bg-gray-300 text-gray-800 text-sm font-semibold rounded-lg hover:bg-gray-400 transition">
+                            + Add Task
+                        </button>
+                    </div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', html);
+            updateCustomizationControls(); 
+        }
+
+        // --- UI Rendering and Interaction ---
+
+        function renderSchedule(data) {
+            const listContainer = document.getElementById('schedule-list');
+            listContainer.innerHTML = '';
+            const currentScheduleDay = calculateCurrentScheduleDay();
+
+            data.forEach(dayEntry => {
+                const dayProgress = dayEntry.tasks.filter(t => t.completed).length;
+                const totalTasks = dayEntry.tasks.length;
+                const progressPercentage = (dayProgress / totalTasks) * 100;
+                const isDayComplete = totalTasks > 0 && dayProgress === totalTasks;
+                const isCurrentDay = dayEntry.day === currentScheduleDay;
+                
+                let dayCardClasses = `bg-white p-6 rounded-2xl transition duration-300 hover:shadow-xl `;
+                if (isCurrentDay) {
+                    dayCardClasses += 'current-day border-l-8 border-emerald-500 shadow-2xl'; 
+                } else if (isDayComplete) {
+                    dayCardClasses += 'shadow-md border-l-8 border-teal-500'; 
+                } else {
+                    dayCardClasses += 'shadow-md border-l-8 border-blue-500'; 
+                }
+
+                const dayCard = document.createElement('div');
+                dayCard.className = dayCardClasses;
+                
+                const currentDayTag = isCurrentDay ? 
+                    `<span class="ml-3 px-3 py-1 bg-emerald-500 text-white text-xs font-extrabold rounded-full shadow-lg">TODAY (Day ${dayEntry.day})</span>` : 
+                    (dayEntry.day < currentScheduleDay && !isDayComplete) ?
+                    `<span class="ml-3 px-3 py-1 bg-orange-500 text-white text-xs font-extrabold rounded-full shadow-lg">Past Due</span>` : 
+                    (isDayComplete) ?
+                    `<span class="ml-3 px-3 py-1 bg-teal-500 text-white text-xs font-extrabold rounded-full shadow-lg">COMPLETE</span>` :
+                    '';
+                
+                const cardHeaderColor = isCurrentDay ? 'text-emerald-700' : isDayComplete ? 'text-teal-700' : 'text-blue-700';
+                const progressBarColor = isDayComplete ? 'bg-green-500' : 'bg-blue-600';
+
+
+                dayCard.innerHTML = `
+                    <div class="flex justify-between items-center mb-4 border-b pb-3 border-gray-100">
+                        <h2 class="text-2xl font-extrabold ${cardHeaderColor} flex items-center">
+                            Day ${dayEntry.day}: ${dayEntry.title}
+                            ${currentDayTag}
+                        </h2>
+                        <div class="text-md font-semibold ${isDayComplete ? 'text-green-600' : 'text-gray-500'}">
+                            ${dayProgress}/${totalTasks} Tasks
+                        </div>
+                    </div>
+                    <!-- Progress Bar -->
+                    <div class="w-full bg-gray-200 rounded-full h-2.5 mb-4 overflow-hidden">
+                        <div class="progress-bar-inner ${progressBarColor}" style="width: ${progressPercentage}%;"></div>
+                    </div>
+                    
+                    <ul class="space-y-2 pt-2 mb-4">
+                        ${dayEntry.tasks.map((task, index) => `
+                            <li class="flex items-start p-3 bg-gray-50 rounded-xl border border-gray-100 transition-colors duration-200 hover:bg-blue-50/50">
+                                <input type="checkbox" id="day-${dayEntry.day}-task-${index}"
+                                    data-day="${dayEntry.day}"
+                                    data-index="${index}"
+                                    ${task.completed ? 'checked' : ''}
+                                    class="mt-1 w-5 h-5 text-blue-600 bg-white border-gray-300 rounded-md focus:ring-blue-500 transition-transform duration-200 cursor-pointer">
+                                <label for="day-${dayEntry.day}-task-${index}" class="ml-3 text-gray-800 flex-1 cursor-pointer ${task.completed ? 'line-through text-gray-500' : 'font-medium'}">
+                                    <span class="text-base">${task.desc}</span>
+                                    <div class="flex items-center space-x-3 text-xs mt-1">
+                                        <!-- Resource Tag -->
+                                        <span class="px-2 py-0.5 rounded-full font-medium ${task.type.includes('Video') ? 'bg-red-100 text-red-700' : task.type.includes('Article') ? 'bg-indigo-100 text-indigo-700' : task.type.includes('Problem') || task.type.includes('Practice') ? 'bg-yellow-100 text-yellow-700' : task.type.includes('Break') ? 'bg-gray-200 text-gray-700' : 'bg-gray-200 text-gray-700'}">${task.type}</span>
+                                        <!-- Link with Icon -->
+                                        <a href="${task.link}" target="_blank" class="text-blue-600 hover:text-blue-800 font-semibold flex items-center">
+                                            ${task.resource} 
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                            </svg>
+                                        </a>
+                                    </div>
+                                </label>
+                            </li>
+                        `).join('')}
+                    </ul>
+                    
+                    <!-- Daily Notes Section (Styled better) -->
+                    <div class="mt-6 p-4 rounded-xl bg-indigo-50 border border-indigo-200">
+                        <h4 class="text-lg font-bold text-indigo-700 mb-2 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-indigo-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" /></svg>
+                            Daily Notes & Reflection
+                        </h4>
+                        <textarea id="day-note-${dayEntry.day}" 
+                                     class="w-full p-3 border rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500 h-24 resize-none" 
+                                     placeholder="What did you learn today? Key concepts, edge cases, and time complexities for problems solved..."
+                                     oninput="window.saveDayNote(${dayEntry.day})"
+                        >${dayEntry.note || ''}</textarea>
+                        <p class="text-xs text-gray-500 mt-1">Notes automatically save to the browser's local storage.</p>
+                    </div>
+                `;
+                listContainer.appendChild(dayCard);
+            });
+
+            // Re-attach event listeners after rendering
+            document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                checkbox.onchange = handleTaskChange;
+            });
+            
+            // Scroll to the current day if it exists
+            const currentDayElement = document.querySelector('.current-day');
+            if (currentDayElement) {
+                currentDayElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        /**
+         * Handles the checkbox change event and saves the progress.
+         */
+        function handleTaskChange(event) {
+            const checkbox = event.target;
+            const day = parseInt(checkbox.dataset.day);
+            const index = parseInt(checkbox.dataset.index);
+            const isCompleted = checkbox.checked;
+
+            // Optimistically update the UI label
+            const label = document.querySelector(`label[for="${checkbox.id}"]`);
+            if (label) {
+                 if (isCompleted) {
+                    label.classList.add('line-through', 'text-gray-500');
+                    label.classList.remove('font-medium');
+                } else {
+                    label.classList.remove('line-through', 'text-gray-500');
+                    label.classList.add('font-medium');
+                }
+            }
+
+            // Save the change to LocalStorage
+            saveTaskCompletion(day, index, isCompleted);
+        }
+
+        // Initializer: Simplified for local mode
+        function initializeLocalApp() {
+            // Set user ID display to show local mode
+            document.getElementById('user-id').textContent = 'Local Mode (No Login)';
+            
+            // Determine the start date for the roadmap
+            getOrSetStartDate();
+
+            // Initialize language toggle display
+            window.switchLanguage('cpp'); 
+
+            // Kick off data loading
+            loadScheduleProgress();
+        }
+
+        // Start the application
+        window.onload = function() {
+            document.getElementById('status-message').classList.remove('hidden');
+            document.getElementById('status-text').textContent = "Loading progress from local storage...";
+            initializeLocalApp();
+        };
+
+        // Register Service Worker for PWA functionality
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch(err => {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>
