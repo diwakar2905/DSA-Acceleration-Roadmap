@@ -1,10 +1,7 @@
-const CACHE_NAME = 'dsa-roadmap-cache-v1';
+const CACHE_NAME = 'dsa-roadmap-cache-v2'; // Bump version to trigger update
 const APP_SHELL_URLS = [
   '/',
   '/index.html',
-  'https://cdn.tailwindcss.com', // Tailwind CSS CDN
-  'https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap', // Inter font CSS
-  // Add paths to your icons here once created
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',
   '/icons/icon-maskable-192x192.png',
@@ -16,7 +13,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Service Worker: Opened cache');
+        console.log('Service Worker: Caching App Shell');
         return cache.addAll(APP_SHELL_URLS); // Corrected from the previous version
       })
   );
@@ -36,13 +33,15 @@ self.addEventListener('fetch', (event) => {
 
       // 2. Fetch from the network in the background to update the cache
       const fetchedResponsePromise = fetch(event.request).then((networkResponse) => {
-        // If the fetch is successful, update the cache
+        // If the fetch is successful, clone it and update the cache.
         cache.put(event.request, networkResponse.clone());
         return networkResponse;
       }).catch(err => {
         // The network failed, but we might have a cached response.
         // If not, this will naturally result in a network error.
         console.warn('Service Worker: Fetch failed, relying on cache.', err);
+        // This return is important for the `||` operator below
+        return cachedResponse; 
       });
 
       // 3. Return the cached response immediately if available, otherwise wait for the network

@@ -40,9 +40,9 @@
     <!-- Header and Dashboard Container (No longer sticky) -->
     <div class="bg-[#f7f7f9] shadow-lg pb-4">
         <!-- Header -->
-        <div class="max-w-4xl mx-auto p-4 md:p-0">
-            <header class="text-center mb-4 p-6 bg-gradient-to-r from-blue-700 to-indigo-800 shadow-xl rounded-xl text-white">
-                <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight">DSA Acceleration Roadmap</h1>
+        <div class="max-w-4xl mx-auto p-2 md:p-0">
+            <header class="text-center mb-4 p-4 md:p-6 bg-gradient-to-r from-blue-700 to-indigo-800 shadow-xl rounded-xl text-white">
+                <h1 class="text-2xl md:text-4xl font-extrabold tracking-tight">DSA Acceleration Roadmap</h1>
                 <p class="mt-1 text-lg font-light opacity-90 hidden md:block">Your personalized, daily DSA roadmap.</p>
                 <!-- Updated user ID display for local mode -->
                 <p class="mt-2 text-xs opacity-60">Status: <span id="user-id" class="font-mono text-xs">Loading...</span></p>
@@ -75,12 +75,12 @@
         </div>
 
         <!-- Progress Dashboard -->
-        <section id="dashboard" class="max-w-4xl mx-auto grid grid-cols-3 gap-4 px-4">
+        <section id="dashboard" class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4 px-4">
             <!-- Total Progress with Progress Ring (New Visual) -->
             <div class="bg-white p-4 rounded-xl shadow-xl border-t-4 border-indigo-500 text-center flex items-center justify-between">
                 <div class="text-left flex-1">
                     <p class="text-xs font-semibold uppercase text-gray-500">Overall Progress</p>
-                    <p id="total-progress-text" class="text-2xl font-extrabold text-indigo-700 mt-1">0%</p>
+                    <p id="total-progress-text" class="text-xl sm:text-2xl font-extrabold text-indigo-700 mt-1">0%</p>
                     <p id="total-progress-count" class="text-sm text-gray-500 mt-1">0/0 Tasks</p>
                 </div>
                 <!-- SVG Progress Ring -->
@@ -96,14 +96,14 @@
             <!-- Current Streak -->
             <div class="bg-white p-4 rounded-xl shadow-xl border-t-4 border-emerald-500 text-center">
                 <p class="text-xs font-semibold uppercase text-gray-500">Current Streak</p>
-                <p id="current-streak" class="text-4xl font-extrabold text-emerald-700 mt-1">0</p>
+                <p id="current-streak" class="text-3xl md:text-4xl font-extrabold text-emerald-700 mt-1">0</p>
                 <p class="text-sm text-gray-500 mt-1">Days</p>
             </div>
             <!-- Days Scheduled -->
             <div class="bg-white p-4 rounded-xl shadow-xl border-t-4 border-blue-500 text-center">
                 <p class="text-xs font-semibold uppercase text-gray-500">Total Roadmap</p>
                 <!-- NOTE: This is dynamically updated by JS, 74 is just a visual default -->
-                <p id="days-scheduled" class="text-4xl font-extrabold text-blue-700 mt-1">74</p> 
+                <p id="days-scheduled" class="text-3xl md:text-4xl font-extrabold text-blue-700 mt-1">60</p> 
                 <p class="text-sm text-gray-500 mt-1">Days Planned</p>
             </div>
         </section>
@@ -125,6 +125,11 @@
 
     </div>
 
+    <!-- Footer -->
+    <footer class="text-center py-8 text-gray-500 text-sm">
+        <p>Made with ❤️ by Diwakar Mishra</p>
+    </footer>
+
     <!-- 1. Reset Confirmation Modal -->
     <div id="reset-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center p-4 z-50">
         <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full">
@@ -145,11 +150,11 @@
     <div id="customize-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center p-4 z-50">
         <div class="bg-white p-8 rounded-2xl shadow-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-6 border-b pb-3">
-                <h3 class="text-2xl font-extrabold text-indigo-700">Customize DSA Schedule (Max 15 Days)</h3>
+                <h3 class="text-2xl font-extrabold text-indigo-700">Customize DSA Schedule (Max 30 Days)</h3>
                 <button onclick="window.hideCustomizeModal()" class="text-gray-500 hover:text-gray-800 text-2xl font-bold">&times;</button>
             </div>
 
-            <p class="text-sm text-gray-600 mb-4">You can override or extend the schedule from Day 15 onwards. **Note:** Only the structure is saved; task completion status is separate. You can edit up to 15 days at a time.</p>
+            <p class="text-sm text-gray-600 mb-4">You can override or extend the schedule. **Note:** Only the structure is saved; task completion status is separate. You can edit up to 30 days at a time.</p>
             
             <form id="schedule-form" onsubmit="window.saveCustomSchedule(event)">
                 <div id="days-container" class="space-y-6">
@@ -185,8 +190,8 @@
         let customSchedule = [];
         let mergedSchedule = [];
         let currentLanguage = 'cpp'; // Default language state (NEW)
-        let startDateStr; // NEW: This will hold the dynamically determined start date
-        const MAX_CUSTOM_DAYS = 15; // Max days allowed in the customization tool at once.
+        let startDateStr; 
+        const MAX_CUSTOM_DAYS = 30; // Max days allowed in the customization tool at once.
         const CIRCUMFERENCE = 2 * Math.PI * 45; // Circumference for SVG ring with r=45
 
         // --- Core DSA Schedule Data (Days 1-74) ---
@@ -1384,13 +1389,8 @@
             let nextDay = day;
             
             if (nextDay === null) {
-                 const existingDayInputs = container.querySelectorAll('input[name="day-number"]');
-                 const currentMaxDay = Array.from(existingDayInputs)
-                     .map(input => parseInt(input.value))
-                     .filter(val => !isNaN(val))
-                     .reduce((max, val) => Math.max(max, val), schedule_cpp.length); 
-                 nextDay = currentMaxDay + 1;
-                 title = "New Topic / Custom Day"; 
+                nextDay = ''; // Leave the day number blank for the user to fill in
+                title = "New Topic / Custom Day"; 
             }
 
             const sectionId = `day-section-${nextDay}-${Date.now()}`;
@@ -1452,7 +1452,7 @@
                 const isDayComplete = totalTasks > 0 && dayProgress === totalTasks;
                 const isCurrentDay = dayEntry.day === currentScheduleDay;
                 
-                let dayCardClasses = `bg-white p-6 rounded-2xl transition duration-300 hover:shadow-xl `;
+                let dayCardClasses = `bg-white p-4 md:p-6 rounded-2xl transition duration-300 hover:shadow-xl `;
                 if (isCurrentDay) {
                     dayCardClasses += 'current-day border-l-8 border-emerald-500 shadow-2xl'; 
                 } else if (isDayComplete) {
@@ -1478,7 +1478,7 @@
 
                 dayCard.innerHTML = `
                     <div class="flex justify-between items-center mb-4 border-b pb-3 border-gray-100">
-                        <h2 class="text-2xl font-extrabold ${cardHeaderColor} flex items-center">
+                        <h2 class="text-xl md:text-2xl font-extrabold ${cardHeaderColor} flex items-center flex-wrap">
                             Day ${dayEntry.day}: ${dayEntry.title}
                             ${currentDayTag}
                         </h2>
