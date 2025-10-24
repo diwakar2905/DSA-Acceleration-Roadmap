@@ -12,7 +12,7 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f7f7f9; 
+            /* background-color is now handled by Tailwind classes */
         }
         .current-day {
             /* Prominent highlight for today (Emerald Green) */
@@ -34,11 +34,19 @@
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
         }
     </style>
+    <script>
+        // Immediately set theme to avoid FOUC (Flash of Unstyled Content)
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
 </head>
-<body class="min-h-screen p-4 md:p-8">
+<body class="min-h-screen p-4 md:p-8 bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-300">
 
     <!-- Header and Dashboard Container (No longer sticky) -->
-    <div class="bg-[#f7f7f9] shadow-lg pb-4">
+    <div class="bg-gray-100 dark:bg-gray-900 shadow-lg pb-4">
         <!-- Header -->
         <div class="max-w-4xl mx-auto p-2 md:p-0">
             <header class="text-center mb-4 p-4 md:p-6 bg-gradient-to-r from-blue-700 to-indigo-800 shadow-xl rounded-xl text-white">
@@ -60,15 +68,20 @@
                 </div>
 
                 <!-- Control Buttons -->
-                <div class="mt-4 flex flex-col md:flex-row justify-center space-y-2 md:space-y-0 md:space-x-3 text-sm">
-                    <button id="customize-btn" onclick="window.showCustomizeModal()" class="px-5 py-2 bg-yellow-400 text-gray-900 font-bold rounded-lg shadow-md hover:bg-yellow-500 transition duration-300">
+                <div class="mt-4 flex flex-col md:flex-row justify-center items-center space-y-2 md:space-y-0 md:space-x-3 text-sm">
+                    <button id="customize-btn" onclick="window.showCustomizeModal()" class="px-5 py-2 bg-yellow-400 text-gray-900 font-bold rounded-lg shadow-md hover:bg-yellow-300 transition duration-300 transform hover:scale-105">
                         Customize Schedule
                     </button>
-                    <button id="download-report-btn" onclick="window.downloadReport()" class="px-5 py-2 bg-white text-indigo-700 font-bold rounded-lg shadow-md hover:bg-gray-100 transition duration-300">
+                    <button id="download-report-btn" onclick="window.downloadReport()" class="px-5 py-2 bg-white text-indigo-700 font-bold rounded-lg shadow-md hover:bg-gray-200 transition duration-300 transform hover:scale-105">
                         Download Report
                     </button>
-                    <button id="reset-progress-btn" onclick="window.showResetModal()" class="px-5 py-2 bg-red-500 text-white font-bold rounded-lg shadow-md hover:bg-red-600 transition duration-300">
+                    <button id="reset-progress-btn" onclick="window.showResetModal()" class="px-5 py-2 bg-red-600 text-white font-bold rounded-lg shadow-md hover:bg-red-500 transition duration-300 transform hover:scale-105">
                         Reset Progress
+                    </button>
+                    <!-- Dark Mode Toggle -->
+                    <button id="theme-toggle" type="button" class="p-2 rounded-lg text-indigo-200 hover:bg-indigo-600 hover:text-white transition duration-300">
+                        <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
+                        <svg id="theme-toggle-light-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 5.05a1 1 0 00-1.414 1.414l.707.707a1 1 0 001.414-1.414l-.707-.707zM3 11a1 1 0 100-2H2a1 1 0 100 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
                     </button>
                 </div>
             </header>
@@ -77,7 +90,7 @@
         <!-- Progress Dashboard -->
         <section id="dashboard" class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4 px-4">
             <!-- Total Progress with Progress Ring (New Visual) -->
-            <div class="bg-white p-4 rounded-xl shadow-xl border-t-4 border-indigo-500 text-center flex items-center justify-between">
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-lg border-t-4 border-indigo-500 text-center flex items-center justify-between">
                 <div class="text-left flex-1">
                     <p class="text-xs font-semibold uppercase text-gray-500">Overall Progress</p>
                     <p id="total-progress-text" class="text-xl sm:text-2xl font-extrabold text-indigo-700 mt-1">0%</p>
@@ -86,7 +99,7 @@
                 <!-- SVG Progress Ring -->
                 <svg width="60" height="60" viewBox="0 0 100 100" class="flex-shrink-0">
                     <!-- Background Track -->
-                    <circle cx="50" cy="50" r="45" fill="none" stroke="#e0e7ff" stroke-width="10"/>
+                    <circle cx="50" cy="50" r="45" fill="none" stroke="#e0e7ff" class="dark:stroke-gray-700" stroke-width="10"/>
                     <!-- Progress Arc -->
                     <circle cx="50" cy="50" r="45" fill="none" stroke="#4f46e5" stroke-width="10"
                             stroke-dasharray="282.7" stroke-dashoffset="282.7"
@@ -94,13 +107,13 @@
                 </svg>
             </div>
             <!-- Current Streak -->
-            <div class="bg-white p-4 rounded-xl shadow-xl border-t-4 border-emerald-500 text-center">
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-lg border-t-4 border-emerald-500 text-center">
                 <p class="text-xs font-semibold uppercase text-gray-500">Current Streak</p>
                 <p id="current-streak" class="text-3xl md:text-4xl font-extrabold text-emerald-700 mt-1">0</p>
                 <p class="text-sm text-gray-500 mt-1">Days</p>
             </div>
             <!-- Days Scheduled -->
-            <div class="bg-white p-4 rounded-xl shadow-xl border-t-4 border-blue-500 text-center">
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-lg border-t-4 border-blue-500 text-center">
                 <p class="text-xs font-semibold uppercase text-gray-500">Total Roadmap</p>
                 <!-- NOTE: This is dynamically updated by JS, 74 is just a visual default -->
                 <p id="days-scheduled" class="text-3xl md:text-4xl font-extrabold text-blue-700 mt-1">60</p> 
@@ -113,7 +126,7 @@
     <div id="app" class="max-w-4xl mx-auto pt-4">
 
         <!-- Loading & Error Status -->
-        <div id="status-message" class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-6 hidden rounded-lg" role="alert">
+        <div id="status-message" class="bg-yellow-100 dark:bg-yellow-900/50 border-l-4 border-yellow-500 text-yellow-700 dark:text-yellow-300 p-4 mb-6 hidden rounded-lg" role="alert">
             <p class="font-bold">Loading Data...</p>
             <p id="status-text">Connecting to the database and loading your progress.</p>
         </div>
@@ -127,7 +140,7 @@
 
     <!-- Footer -->
     <footer class="text-center py-8 text-gray-500 text-sm">
-        <p>Made with ❤️ by Diwakar Mishra</p>
+        <p>Made by Diwakar Mishra</p>
     </footer>
 
     <!-- 1. Reset Confirmation Modal -->
@@ -148,13 +161,13 @@
     
     <!-- 2. Customize Schedule Modal -->
     <div id="customize-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center p-4 z-50">
-        <div class="bg-white p-8 rounded-2xl shadow-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-6 border-b pb-3">
                 <h3 class="text-2xl font-extrabold text-indigo-700">Customize DSA Schedule (Max 30 Days)</h3>
                 <button onclick="window.hideCustomizeModal()" class="text-gray-500 hover:text-gray-800 text-2xl font-bold">&times;</button>
             </div>
 
-            <p class="text-sm text-gray-600 mb-4">You can override or extend the schedule. **Note:** Only the structure is saved; task completion status is separate. You can edit up to 30 days at a time.</p>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">You can override or extend the schedule. **Note:** Only the structure is saved; task completion status is separate. You can edit up to 30 days at a time.</p>
             
             <form id="schedule-form" onsubmit="window.saveCustomSchedule(event)">
                 <div id="days-container" class="space-y-6">
@@ -162,7 +175,7 @@
                 </div>
                 
                 <div class="flex justify-between items-center mt-6 pt-4 border-t">
-                    <div>
+                    <div class="flex-shrink-0">
                         <button type="button" id="add-day-btn" onclick="window.addDaySection()" class="px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition duration-200 flex items-center">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" /></svg>
                             Add New Day
@@ -1324,17 +1337,14 @@
             const container = document.getElementById('days-container');
             container.innerHTML = '';
             
-            const daysToEdit = mergedSchedule.filter(d => d.day >= 15 && d.day <= 14 + MAX_CUSTOM_DAYS);
-
-            if (daysToEdit.length === 0) {
-                 window.addDaySection(
-                     Math.max(...mergedSchedule.map(d => d.day)) + 1 || 15, // Calculate next logical day
-                     "New Topic / Custom Day"
-                 );
+            // Load the user's actual saved custom days into the form.
+            if (customSchedule.length > 0) {
+                customSchedule.forEach(dayData => {
+                    window.addDaySection(dayData.day, dayData.title, dayData.tasks);
+                });
             } else {
-                 daysToEdit.forEach(dayData => {
-                     window.addDaySection(dayData.day, dayData.title, dayData.tasks);
-                 });
+                // If there are no custom days, show one blank "Add New Day" section to start.
+                window.addDaySection(null, "New Topic / Custom Day", []);
             }
             
             updateCustomizationControls(); 
@@ -1452,7 +1462,7 @@
                 const isDayComplete = totalTasks > 0 && dayProgress === totalTasks;
                 const isCurrentDay = dayEntry.day === currentScheduleDay;
                 
-                let dayCardClasses = `bg-white p-4 md:p-6 rounded-2xl transition duration-300 hover:shadow-xl `;
+                let dayCardClasses = `bg-white dark:bg-gray-800 p-4 md:p-6 rounded-2xl transition duration-300 hover:shadow-xl `;
                 if (isCurrentDay) {
                     dayCardClasses += 'current-day border-l-8 border-emerald-500 shadow-2xl'; 
                 } else if (isDayComplete) {
@@ -1471,7 +1481,7 @@
                     (isDayComplete) ?
                     `<span class="ml-3 px-3 py-1 bg-teal-500 text-white text-xs font-extrabold rounded-full shadow-lg">COMPLETE</span>` :
                     '';
-                
+
                 const cardHeaderColor = isCurrentDay ? 'text-emerald-700' : isDayComplete ? 'text-teal-700' : 'text-blue-700';
                 const progressBarColor = isDayComplete ? 'bg-green-500' : 'bg-blue-600';
 
@@ -1482,24 +1492,30 @@
                             Day ${dayEntry.day}: ${dayEntry.title}
                             ${currentDayTag}
                         </h2>
-                        <div class="text-md font-semibold ${isDayComplete ? 'text-green-600' : 'text-gray-500'}">
+                        <div class="text-md font-semibold ${isDayComplete ? 'text-green-600' : 'text-gray-500 dark:text-gray-400'}">
                             ${dayProgress}/${totalTasks} Tasks
                         </div>
                     </div>
                     <!-- Progress Bar -->
-                    <div class="w-full bg-gray-200 rounded-full h-2.5 mb-4 overflow-hidden">
+                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mb-4 overflow-hidden">
                         <div class="progress-bar-inner ${progressBarColor}" style="width: ${progressPercentage}%;"></div>
                     </div>
                     
                     <ul class="space-y-2 pt-2 mb-4">
                         ${dayEntry.tasks.map((task, index) => `
-                            <li class="flex items-start p-3 bg-gray-50 rounded-xl border border-gray-100 transition-colors duration-200 hover:bg-blue-50/50">
-                                <input type="checkbox" id="day-${dayEntry.day}-task-${index}"
-                                    data-day="${dayEntry.day}"
-                                    data-index="${index}"
-                                    ${task.completed ? 'checked' : ''}
-                                    class="mt-1 w-5 h-5 text-blue-600 bg-white border-gray-300 rounded-md focus:ring-blue-500 transition-transform duration-200 cursor-pointer">
-                                <label for="day-${dayEntry.day}-task-${index}" class="ml-3 text-gray-800 flex-1 cursor-pointer ${task.completed ? 'line-through text-gray-500' : 'font-medium'}">
+                            <li class="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-700 transition-colors duration-200 hover:bg-blue-50/50 dark:hover:bg-gray-700">
+                                <label for="day-${dayEntry.day}-task-${index}" class="flex items-center cursor-pointer group">
+                                    <!-- Custom Checkbox -->
+                                    <div class="w-5 h-5 flex-shrink-0 mr-4 border-2 border-gray-300 dark:border-gray-500 rounded-md flex items-center justify-center transition-all duration-200 group-hover:border-indigo-400 peer-checked:bg-emerald-500 peer-checked:border-emerald-500">
+                                        <input type="checkbox" id="day-${dayEntry.day}-task-${index}"
+                                            data-day="${dayEntry.day}"
+                                            data-index="${index}"
+                                            ${task.completed ? 'checked' : ''}
+                                            class="opacity-0 absolute w-5 h-5 cursor-pointer peer">
+                                        <!-- Checkmark SVG -->
+                                        <svg class="hidden w-4 h-4 text-white peer-checked:block" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                                    </div>
+                                    <div class="flex-1 text-gray-800 dark:text-gray-300 peer-checked:line-through peer-checked:text-gray-500 dark:peer-checked:text-gray-400 transition-colors duration-200">
                                     <span class="text-base">${task.desc}</span>
                                     <div class="flex items-center space-x-3 text-xs mt-1">
                                         <!-- Resource Tag -->
@@ -1518,17 +1534,17 @@
                     </ul>
                     
                     <!-- Daily Notes Section (Styled better) -->
-                    <div class="mt-6 p-4 rounded-xl bg-indigo-50 border border-indigo-200">
+                    <div class="mt-6 p-4 rounded-xl bg-indigo-50 dark:bg-gray-700 border border-indigo-200 dark:border-gray-600">
                         <h4 class="text-lg font-bold text-indigo-700 mb-2 flex items-center">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-indigo-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" /></svg>
                             Daily Notes & Reflection
                         </h4>
                         <textarea id="day-note-${dayEntry.day}" 
-                                     class="w-full p-3 border rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500 h-24 resize-none" 
+                                     class="w-full p-3 border rounded-lg text-sm bg-white dark:bg-gray-800 dark:text-gray-200 focus:ring-indigo-500 focus:border-indigo-500 h-24 resize-none dark:placeholder-gray-400" 
                                      placeholder="What did you learn today? Key concepts, edge cases, and time complexities for problems solved..."
                                      oninput="window.saveDayNote(${dayEntry.day})"
                         >${dayEntry.note || ''}</textarea>
-                        <p class="text-xs text-gray-500 mt-1">Notes automatically save to the browser's local storage.</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Notes automatically save to the browser's local storage.</p>
                     </div>
                 `;
                 listContainer.appendChild(dayCard);
@@ -1556,16 +1572,7 @@
             const isCompleted = checkbox.checked;
 
             // Optimistically update the UI label
-            const label = document.querySelector(`label[for="${checkbox.id}"]`);
-            if (label) {
-                 if (isCompleted) {
-                    label.classList.add('line-through', 'text-gray-500');
-                    label.classList.remove('font-medium');
-                } else {
-                    label.classList.remove('line-through', 'text-gray-500');
-                    label.classList.add('font-medium');
-                }
-            }
+            // The UI update is now handled automatically by the peer-checked CSS classes.
 
             // Save the change to LocalStorage
             saveTaskCompletion(day, index, isCompleted);
@@ -1585,6 +1592,45 @@
             // Kick off data loading
             loadScheduleProgress();
         }
+        
+        // --- Dark Mode Toggle Logic ---
+        const themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
+        const themeToggleLightIcon = document.getElementById('theme-toggle-light-icon');
+
+        // Change the icons inside the button based on previous settings
+        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            themeToggleLightIcon.classList.remove('hidden');
+        } else {
+            themeToggleDarkIcon.classList.remove('hidden');
+        }
+
+        const themeToggleBtn = document.getElementById('theme-toggle');
+
+        themeToggleBtn.addEventListener('click', function() {
+            // toggle icons inside button
+            themeToggleDarkIcon.classList.toggle('hidden');
+            themeToggleLightIcon.classList.toggle('hidden');
+
+            // if set via local storage previously
+            if (localStorage.getItem('theme')) {
+                if (localStorage.getItem('theme') === 'light') {
+                    document.documentElement.classList.add('dark');
+                    localStorage.setItem('theme', 'dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    localStorage.setItem('theme', 'light');
+                }
+            // if NOT set via local storage previously
+            } else {
+                if (document.documentElement.classList.contains('dark')) {
+                    document.documentElement.classList.remove('dark');
+                    localStorage.setItem('theme', 'light');
+                } else {
+                    document.documentElement.classList.add('dark');
+                    localStorage.setItem('theme', 'dark');
+                }
+            }
+        });
 
         // Start the application
         window.onload = function() {
