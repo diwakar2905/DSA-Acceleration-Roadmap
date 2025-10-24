@@ -193,11 +193,6 @@
 
     <!-- Local Storage Scripting (Replaced Firebase) -->
     <script>
-        // Local Storage Keys
-        const LOCAL_PROGRESS_KEY = 'dsa_tracker_progress';
-        const LOCAL_CUSTOM_SCHEDULE_KEY = 'dsa_tracker_custom';
-        const LOCAL_START_DATE_KEY = 'dsa_tracker_start_date'; // NEW: Key for storing the start date
-
         let schedule_cpp = []; // Store C++ schedule
         let schedule_java = []; // Store Java schedule
         let customSchedule = [];
@@ -889,14 +884,19 @@
 
         // --- Local Storage Functions (Replaced Firebase Logic) ---
 
+        // NEW: Functions to get language-specific localStorage keys
+        const getProgressKey = () => `dsa_tracker_progress_${currentLanguage}`;
+        const getCustomScheduleKey = () => `dsa_tracker_custom_${currentLanguage}`;
+        const getStartDateKey = () => `dsa_tracker_start_date_${currentLanguage}`;
+
         /**
          * Loads all data from localStorage (simulating a database fetch).
          */
         function loadLocalData() {
             try {
-                const progressJson = localStorage.getItem(LOCAL_PROGRESS_KEY);
-                const customJson = localStorage.getItem(LOCAL_CUSTOM_SCHEDULE_KEY);
-                
+                const progressJson = localStorage.getItem(getProgressKey());
+                const customJson = localStorage.getItem(getCustomScheduleKey());
+
                 // Progress is stored per day (we simulate a map of day -> {tasks: [], note: ''})
                 const savedProgressMap = progressJson ? JSON.parse(progressJson) : {};
                 
@@ -915,8 +915,8 @@
          */
         function saveLocalData(progressMap, customDays) {
             try {
-                localStorage.setItem(LOCAL_PROGRESS_KEY, JSON.stringify(progressMap));
-                localStorage.setItem(LOCAL_CUSTOM_SCHEDULE_KEY, JSON.stringify(customDays));
+                localStorage.setItem(getProgressKey(), JSON.stringify(progressMap));
+                localStorage.setItem(getCustomScheduleKey(), JSON.stringify(customDays));
             } catch (error) {
                 console.error("Error saving data to localStorage:", error);
             }
@@ -945,7 +945,7 @@
             });
             
             // Reload progress with the new language schedule structure
-            loadScheduleProgress();
+            initializeLocalApp(); // Re-initialize to get correct start date and schedule
         }
 
         /**
@@ -953,8 +953,8 @@
          */
         window.downloadReport = function() {
             try {
-                const progressJson = localStorage.getItem(LOCAL_PROGRESS_KEY);
-                const customJson = localStorage.getItem(LOCAL_CUSTOM_SCHEDULE_KEY);
+                const progressJson = localStorage.getItem(getProgressKey());
+                const customJson = localStorage.getItem(getCustomScheduleKey());
 
                 const reportData = {
                     language: currentLanguage,
@@ -984,7 +984,7 @@
          * NEW: Gets the start date from localStorage or sets it to today if not found.
          */
         function getOrSetStartDate() {
-            let savedStartDate = localStorage.getItem(LOCAL_START_DATE_KEY);
+            let savedStartDate = localStorage.getItem(getStartDateKey());
             if (!savedStartDate) {
                 const today = new Date();
                 // Format to YYYY-MM-DD
@@ -992,7 +992,7 @@
                 const month = String(today.getMonth() + 1).padStart(2, '0');
                 const day = String(today.getDate()).padStart(2, '0');
                 savedStartDate = `${year}-${month}-${day}`;
-                localStorage.setItem(LOCAL_START_DATE_KEY, savedStartDate);
+                localStorage.setItem(getStartDateKey(), savedStartDate);
             }
             startDateStr = savedStartDate;
         }
@@ -1025,14 +1025,14 @@
             document.getElementById('status-message').classList.remove('hidden');
             document.getElementById('status-text').textContent = "Resetting progress...";
 
-            localStorage.removeItem(LOCAL_PROGRESS_KEY);
-            localStorage.removeItem(LOCAL_CUSTOM_SCHEDULE_KEY);
-            localStorage.removeItem(LOCAL_START_DATE_KEY); // Also reset the start date
+            localStorage.removeItem(getProgressKey());
+            localStorage.removeItem(getCustomScheduleKey());
+            localStorage.removeItem(getStartDateKey()); // Also reset the start date
             
             // Reset local memory state
             customSchedule = [];
 
-            // Reload the schedule to reflect the reset
+            // Reload the app to reflect the reset
             loadScheduleProgress(); 
             
             document.getElementById('status-text').textContent = "Progress and custom schedule successfully reset.";
@@ -1091,16 +1091,10 @@
             // Update local memory state for custom schedule
             customSchedule = newCustomDays;
             
-            // Save custom schedule and current progress (for safety)
-            const progressMap = mergedSchedule.reduce((map, d) => {
-                 map[d.day] = { 
-                     day: d.day, 
-                     tasks: d.tasks.map(t => ({ completed: t.completed })),
-                     note: d.note || "" 
-                 };
-                 return map;
-             }, {});
-            saveLocalData(progressMap, customSchedule);
+            // Get the current progress map (which is not affected by custom schedule changes, only task completion)
+            const { savedProgressMap } = loadLocalData();
+            // Save custom schedule and the existing progress map
+            saveLocalData(savedProgressMap, customSchedule);
             
             window.hideCustomizeModal();
             document.getElementById('status-text').textContent = "Custom schedule saved successfully! UI updating...";
@@ -1406,7 +1400,7 @@
             const sectionId = `day-section-${nextDay}-${Date.now()}`;
 
             let tasksHTML = tasks.map(t => getTaskRowHTML(t.desc, t.type, t.link, t.resource)).join('');
-            if (tasks.length === 0 && nextDay !== null) {
+            if (tasks.length === 0) { // If no tasks were provided (e.g., for a brand new day), add one empty task row.
                 tasksHTML = getTaskRowHTML();
             }
 
@@ -1584,15 +1578,23 @@
             document.getElementById('user-id').textContent = 'Local Mode (No Login)';
             
             // Determine the start date for the roadmap
-            getOrSetStartDate();
-
-            // Initialize language toggle display
-            window.switchLanguage('cpp'); 
+            getOrSetStartDate(); 
 
             // Kick off data loading
             loadScheduleProgress();
+
+            // Set active button style without triggering a reload
+            document.querySelector(`#language-toggle button[data-lang="${currentLanguage}"]`).click();
         }
         
+        window.showResetModal = function() {
+            document.getElementById('reset-modal').style.display = 'flex';
+        }
+
+        window.hideResetModal = function() {
+            document.getElementById('reset-modal').style.display = 'none';
+        }
+
         // --- Dark Mode Toggle Logic ---
         const themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
         const themeToggleLightIcon = document.getElementById('theme-toggle-light-icon');
@@ -1628,7 +1630,10 @@
             document.getElementById('status-message').classList.remove('hidden');
             document.getElementById('status-text').textContent = "Loading progress from local storage...";
             applyTheme(); // Apply theme on load
-            initializeLocalApp();
+
+            // Initialize with default language and then start the app
+            currentLanguage = 'cpp';
+            initializeLocalApp(); 
         };
 
         // Register Service Worker for PWA functionality
