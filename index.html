@@ -99,7 +99,7 @@
     <div class="min-h-screen">
 
         <!-- Main content -->
-        <main class="max-w-4xl mx-auto p-4">
+    <main class="max-w-4xl mx-auto p-4" style="padding-bottom:120px;"> <!-- extra bottom padding to avoid footer overlap -->
 
             <!-- Enhanced Header -->
             <header class="text-center my-8 md:my-12">
@@ -162,13 +162,17 @@
             </div>
 
             <!-- Footer -->
-            <footer class="bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-t border-gray-200 dark:border-gray-800 py-4 mt-8 sticky bottom-0 shadow-lg">
-                <div class="max-w-4xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
-                    <div class="text-sm text-gray-600 dark:text-gray-300 text-center md:text-left">
-                        <p class="font-semibold">DSA Acceleration Roadmap</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-500">Made by Diwakar Mishra • © 2025</p>
+            <footer class="bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-t border-gray-200 dark:border-gray-800 py-4 shadow-lg" style="position:fixed;left:0;right:0;bottom:0;z-index:9999;">
+                <div class="w-full px-4 flex items-center justify-between">
+                    <!-- Left corner: app name and author -->
+                    <div class="flex items-center gap-4">
+                        <div class="text-sm text-gray-600 dark:text-gray-300 text-left">
+                            <p class="font-semibold">DSA Acceleration Roadmap</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-500">Made by Diwakar Mishra • © 2025</p>
+                        </div>
                     </div>
 
+                    <!-- Right corner: action buttons -->
                     <div class="flex items-center gap-2">
                         <button id="customize-btn" onclick="window.showCustomizeModal()" class="px-3 py-2 bg-violet-600 text-white rounded-md hover:bg-violet-700 transition">Customize</button>
                         <button id="download-report-btn" onclick="window.downloadReport()" class="px-3 py-2 bg-gray-600 dark:bg-gray-700 text-white dark:text-gray-100 rounded-md hover:bg-gray-500 dark:hover:bg-gray-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
@@ -184,8 +188,6 @@
                             <svg id="theme-toggle-light-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 5.05a1 1 0 00-1.414 1.414l.707.707a1 1 0 001.414-1.414l-.707-.707zM3 11a1 1 0 100-2H2a1 1 0 100 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
                         </button>
                     </div>
-
-                    <!-- Footer links removed per request -->
                 </div>
             </footer>
 
@@ -1626,18 +1628,7 @@
             initializeLocalApp(); 
         };
 
-        // Register Service Worker for PWA functionality
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/service-worker.js')
-                    .then(registration => {
-                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                    })
-                    .catch(err => {
-                        console.log('ServiceWorker registration failed: ', err);
-                    });
-            });
-        }
+        // Note: Service worker is registered in the <head> with an update handler. Duplicate registration removed.
     })(); // End of IIFE
     </script>
 </body>
