@@ -1,68 +1,88 @@
-const CACHE_NAME = 'dsa-roadmap-cache-v2'; // Bump version to trigger update
-const APP_SHELL_URLS = [
-  '/',
-  '/index.html',
-  '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png',
-  '/icons/icon-maskable-192x192.png',
-  '/icons/icon-maskable-512x512.png'
+const CACHE_NAME = "dsa-roadmap-cache-v3";
+const OFFLINE_URL = "/offline.html";
+
+const APP_SHELL = [
+    "/",
+    "/index.html",
+    "/offline.html",
+    "/icons/icon-192x192.png",
+    "/icons/icon-512x512.png",
+    "/icons/icon-maskable-192x192.png",
+    "/icons/icon-maskable-512x512.png",
+    // Local vendor files
+    "/vendor/jspdf.umd.min.js",
+    "/vendor/jspdf.plugin.autotable.min.js",
+    "/vendor/html2canvas.min.js"
 ];
 
-// On install, cache the app shell
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('Service Worker: Caching App Shell');
-        return cache.addAll(APP_SHELL_URLS); // Corrected from the previous version
-      })
-  );
-});
+// ✅ Install - Now with skipWaiting for instant activation
+self.addEventListener("install", (event) => {
+    self.skipWaiting();
 
-// On fetch, use a stale-while-revalidate strategy
-self.addEventListener('fetch', (event) => {
-  // Let the browser handle non-GET requests
-  if (event.request.method !== 'GET') {
-    return;
-  }
-
-  event.respondWith(
-    caches.open(CACHE_NAME).then(async (cache) => {
-      // 1. Try to get the response from the cache
-      const cachedResponse = await cache.match(event.request);
-
-      // 2. Fetch from the network in the background to update the cache
-      const fetchedResponsePromise = fetch(event.request).then((networkResponse) => {
-        // If the fetch is successful, clone it and update the cache.
-        cache.put(event.request, networkResponse.clone());
-        return networkResponse;
-      }).catch(err => {
-        // The network failed, but we might have a cached response.
-        // If not, this will naturally result in a network error.
-        console.warn('Service Worker: Fetch failed, relying on cache.', err);
-        // This return is important for the `||` operator below
-        return cachedResponse; 
-      });
-
-      // 3. Return the cached response immediately if available, otherwise wait for the network
-      return cachedResponse || fetchedResponsePromise;
-    })
-  );
-});
-
-// On activate, clean up old caches
-self.addEventListener('activate', (event) => {
-  const currentCaches = [CACHE_NAME];
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (!currentCaches.includes(cacheName)) {
-            console.log('Service Worker: Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
+    event.waitUntil(
+        caches.open(CACHE_NAME).then((cache) => {
+            console.log("SW: Caching app shell");
+            return cache.addAll(APP_SHELL);
         })
-      );
-    })
-  );
+    );
+});
+
+// ✅ Activate - With immediate claim and better cleanup
+self.addEventListener("activate", (event) => {
+    event.waitUntil(
+        Promise.all([
+            // Clean up old caches
+            caches.keys().then((keys) =>
+                Promise.all(
+                    keys.map((key) => {
+                        if (key !== CACHE_NAME) {
+                            console.log("SW: Removing old cache", key);
+                            return caches.delete(key);
+                        }
+                    })
+                )
+            ),
+            // Take control immediately
+            self.clients.claim()
+        ])
+    );
+});
+
+// ✅ Fetch: Improved stale-while-revalidate + fallbacks
+self.addEventListener("fetch", (event) => {
+    // Only handle GET requests
+    if (event.request.method !== "GET") return;
+
+    // Handle navigation (HTML pages)
+    if (event.request.mode === "navigate") {
+        event.respondWith(
+            fetch(event.request).catch(() => caches.match(OFFLINE_URL))
+        );
+        return;
+    }
+
+    // Ignore external CDN requests in cache
+    const url = new URL(event.request.url);
+    const isLocal = url.origin === self.location.origin;
+
+    event.respondWith(
+        caches.open(CACHE_NAME).then(async (cache) => {
+            const cachedResponse = await cache.match(event.request);
+
+            const networkFetch = fetch(event.request)
+                .then((networkResponse) => {
+                    // Only cache successful local responses
+                    if (isLocal && networkResponse.status === 200) {
+                        cache.put(event.request, networkResponse.clone());
+                    }
+                    return networkResponse;
+                })
+                .catch((error) => {
+                    console.warn("SW: Network fetch failed", error);
+                    return cachedResponse || Promise.reject("No cached response available");
+                });
+
+            return cachedResponse || networkFetch;
+        })
+    );
 });
