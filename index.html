@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>DSA Accelerator Schedule</title>
     <link rel="manifest" href="/manifest.json"> <!-- PWA Manifest -->
     <!-- Service Worker Registration -->
@@ -33,6 +33,12 @@
             });
         }
     </script>
+    <meta name="theme-color" content="#4f46e5">
+    <!-- iOS / Apple meta -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+
     <!-- Local vendor scripts for offline reliability -->
     <script src="/vendor/jspdf.umd.min.js"></script>
     <script src="/vendor/html2canvas.min.js"></script>
@@ -83,6 +89,13 @@
             transform: scale(1);
             opacity: 1;
         }
+        /* Mobile/touch friendliness */
+        button {
+            -webkit-tap-highlight-color: rgba(0,0,0,0);
+            touch-action: manipulation;
+        }
+        /* Ensure comfortable tap targets */
+        .btn-touch { min-height: 44px; padding-top: 10px; padding-bottom: 10px; }
     </style>
     <script>
         // Immediately set theme to avoid FOUC (Flash of Unstyled Content)
@@ -99,7 +112,7 @@
     <div class="min-h-screen">
 
         <!-- Main content -->
-    <main class="max-w-4xl mx-auto p-4" style="padding-bottom:120px;"> <!-- extra bottom padding to avoid footer overlap -->
+    <main class="max-w-4xl mx-auto p-4" style="padding-bottom:calc(120px + env(safe-area-inset-bottom));"> <!-- extra bottom padding to avoid footer overlap and iOS safe-area -->
 
             <!-- Enhanced Header -->
             <header class="text-center my-8 md:my-12">
@@ -163,7 +176,7 @@
 
             <!-- Footer -->
             <footer class="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 py-4 shadow-lg" style="position:fixed;left:0;right:0;bottom:0;z-index:9999;">
-                <div class="w-full px-4 flex items-center justify-between">
+                <div class="w-full px-4 flex flex-col md:flex-row items-center justify-between gap-3 md:gap-0">
                     <!-- Left corner: app name and author -->
                     <div class="flex items-center gap-4">
                         <div class="text-sm text-gray-600 dark:text-gray-300 text-left">
@@ -174,16 +187,18 @@
 
                     <!-- Right corner: action buttons -->
                     <div class="flex items-center gap-2">
-                        <button id="customize-btn" onclick="window.showCustomizeModal()" class="px-3 py-2 bg-violet-600 text-white rounded-md hover:bg-violet-700 transition">Customize</button>
-                        <button id="download-report-btn" onclick="window.downloadReport()" class="px-3 py-2 bg-gray-600 dark:bg-gray-700 text-white dark:text-gray-100 rounded-md hover:bg-gray-500 dark:hover:bg-gray-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                        <!-- Install button for PWA (hidden until beforeinstallprompt fires) -->
+                        <button id="install-btn" onclick="window.promptInstall && window.promptInstall()" class="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition btn-touch hidden" aria-hidden="true" aria-label="Install DSA Roadmap">Install</button>
+                        <button id="customize-btn" onclick="window.showCustomizeModal()" class="px-3 py-2 bg-violet-600 text-white rounded-md hover:bg-violet-700 transition btn-touch">Customize</button>
+                        <button id="download-report-btn" onclick="window.downloadReport()" class="px-3 py-2 bg-gray-600 dark:bg-gray-700 text-white dark:text-gray-100 rounded-md hover:bg-gray-500 dark:hover:bg-gray-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 btn-touch">
                             <span>Download</span>
                             <svg id="download-spinner" class="hidden animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
                         </button>
-                        <button id="reset-progress-btn" onclick="window.showResetModal()" class="px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition">Reset</button>
-                        <button id="theme-toggle" type="button" class="p-2 rounded-md bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700 transition">
+                        <button id="reset-progress-btn" onclick="window.showResetModal()" class="px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition btn-touch">Reset</button>
+                        <button id="theme-toggle" type="button" class="p-2 rounded-md bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700 transition btn-touch">
                             <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
                             <svg id="theme-toggle-light-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 5.05a1 1 0 00-1.414 1.414l.707.707a1 1 0 001.414-1.414l-.707-.707zM3 11a1 1 0 100-2H2a1 1 0 100 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
                         </button>
@@ -258,26 +273,25 @@
         const DEFAULT_SCHEDULE_JAVA = [ // 100-day plan
             { day: 1, title: "Introduction to Programming", note: "", tasks: [ // Day 1
                 { desc: "Introduction to Programming - Types of Languages, Memory Management", type: "Video", link: "https://www.youtube.com/watch?v=wn49bJOYAZM&list=PL9gnSGHSqcnr_DxHsP7AW9ftq0AtAyYqJ&index=5&pp=iAQB", resource: "YouTube" },
-                { desc: "What is Programming?", type: "Article", link: "https://www.geeksforgeeks.org/introduction-of-programming/", resource: "GFG" },
+                { desc: "What is Programming?", type: "Article", link: "https://www.geeksforgeeks.org/c/compiling-a-c-program-behind-the-scenes/", resource: "GFG" },
                 { desc: "Memory layout basics", type: "Article", link: "https://www.geeksforgeeks.org/memory-layout-of-c-program/", resource: "GFG" },
-                { desc: "Understand compilation & interpreter", type: "Practice", link: "#", resource: "Self-Study" },
             ]},
             { day: 2, title: "Flow of Program - Flowcharts & Pseudocode", note: "", tasks: [ // Day 2
                 { desc: "Flow of Program - Flowcharts & Pseudocode", type: "Video", link: "https://www.youtube.com/watch?v=lhELGQAV4gg&list=PL9gnSGHSqcnr_DxHsP7AW9ftq0AtAyYqJ&index=6&pp=iAQB0gcJCQMKAYcqIYzv", resource: "YouTube" },
-                { desc: "Flowcharts", type: "Article", link: "https://www.geeksforgeeks.org/flowchart-designing/", resource: "GFG" },
-                { desc: "Pseudocode", type: "Article", link: "https://www.geeksforgeeks.org/pseudo-code-in-programming/", resource: "GFG" },
+                { desc: "Flowcharts", type: "Article", link: "https://www.geeksforgeeks.org/competitive-programming/an-introduction-to-flowcharts/", resource: "GFG" },
+                { desc: "Pseudocode", type: "Article", link: "https://www.geeksforgeeks.org/dsa/what-is-pseudocode-a-complete-tutorial/", resource: "GFG" },
                 { desc: "Create flowchart for max of 3 numbers", type: "Practice", link: "#", resource: "Self-Study" },
             ]},
             { day: 3, title: "Introduction to Java - Architecture & Installation", note: "", tasks: [ // Day 3
                 { desc: "Introduction to Java - Architecture & Installation", type: "Video", link: "https://www.youtube.com/watch?v=4EP8YzcN0hQ&list=PL9gnSGHSqcnr_DxHsP7AW9ftq0AtAyYqJ&index=7&pp=iAQB0gcJCQMKAYcqIYzv", resource: "YouTube" },
                 { desc: "JDK vs JRE vs JVM", type: "Article", link: "https://www.geeksforgeeks.org/differences-jdk-jre-jvm/", resource: "GFG" },
-                { desc: "How Java works internally", type: "Article", link: "#", resource: "Self-Study" },
+                { desc: "How Java works internally", type: "Article", link: "https://www.geeksforgeeks.org/java/how-jvm-works-jvm-architecture/", resource: "Self-Study" },
                 { desc: "Install JDK + VS Code", type: "Practice", link: "#", resource: "Self-Study" },
             ]},
             { day: 4, title: "First Java Program - Input/Output, Debugging and Datatypes", note: "", tasks: [ // Day 4
                 { desc: "First Java Program - Input/Output, Debugging and Datatypes", type: "Video", link: "https://www.youtube.com/watch?v=TAtrPoaJ7gc&list=PL9gnSGHSqcnr_DxHsP7AW9ftq0AtAyYqJ&index=8&pp=iAQB", resource: "YouTube" },
                 { desc: "Datatypes", type: "Article", link: "https://www.w3schools.com/java/java_data_types.asp", resource: "W3Schools" },
-                { desc: "Input/Output", type: "Article", link: "https://www.javatpoint.com/java-io", resource: "Javatpoint" },
+                { desc: "Input/Output", type: "Article", link: "https://www.geeksforgeeks.org/java/java-io-input-output-in-java-with-examples/", resource: "GFG" },
                 { desc: "FizzBuzz", type: "Easy Problem", link: "https://leetcode.com/problems/fizz-buzz/", resource: "LeetCode" },
                 { desc: "Running Sum of 1d Array", type: "Easy Problem", link: "https://leetcode.com/problems/running-sum-of-1d-array/", resource: "LeetCode" },
             ]},
@@ -289,8 +303,7 @@
             ]},
             { day: 6, title: "Switch Statements", note: "", tasks: [ // Day 6
                 { desc: "Switch Statements + Nested Case in Java", type: "Video", link: "https://www.youtube.com/watch?v=mA23x39DjbI&list=PL9gnSGHSqcnr_DxHsP7AW9ftq0AtAyYqJ&index=10&pp=iAQB", resource: "YouTube" },
-                { desc: "Switch", type: "Article", link: "https://www.w3schools.com/java/java_switch.asp", resource: "W3Schools" },
-                { desc: "Simple menu-driven programs", type: "Practice", link: "#", resource: "Self-Study" },
+                { desc: "Switch", type: "Article", link: "https://www.w3schools.com/java/java_switch.asp", resource: "W3Schools" },,
             ]},
             { day: 7, title: "Functions / Methods in Java", note: "", tasks: [ // Day 7
                 { desc: "Functions / Methods in Java", type: "Video", link: "https://www.youtube.com/watch?v=vvanI8NRlSI&list=PL9gnSGHSqcnr_DxHsP7AW9ftq0AtAyYqJ&index=11&pp=iAQB0gcJCQMKAYcqIYzv", resource: "YouTube" },
@@ -299,13 +312,13 @@
             ]},
             { day: 8, title: "Strings and StringBuilder in Java", note: "", tasks: [ // Day 8
                 { desc: "Strings and StringBuilder in Java", type: "Video", link: "https://www.youtube.com/watch?v=zL1DPZ0Ovlo&list=PL9gnSGHSqcnr_DxHsP7AW9ftq0AtAyYqJ&index=21&pp=iAQB", resource: "YouTube" },
-                { desc: "String vs StringBuilder", type: "Article", link: "https://www.geeksforgeeks.org/difference-between-stringbuffer-and-stringbuilder/", resource: "GFG" },
+                { desc: "String vs StringBuilder", type: "Article", link: "https://www.geeksforgeeks.org/java/string-vs-stringbuilder-vs-stringbuffer-in-java/", resource: "GFG" },
                 { desc: "Valid Palindrome", type: "Easy Problem", link: "https://leetcode.com/problems/valid-palindrome/", resource: "LeetCode" },
                 { desc: "Longest Common Prefix", type: "Easy Problem", link: "https://leetcode.com/problems/longest-common-prefix/", resource: "LeetCode" },
             ]},
             { day: 9, title: "OOP 1 | Introduction & Concepts", note: "", tasks: [ // Day 9
                 { desc: "OOP 1 | Introduction & Concepts - Classes, Objects, Constructors, Keywords", type: "Video", link: "https://www.youtube.com/watch?v=BSVKUk58K6U&list=PL9gnSGHSqcnr_DxHsP7AW9ftq0AtAyYqJ&index=37&pp=iAQB", resource: "YouTube" },
-                { desc: "Java OOP", type: "Article", link: "https://www.javatpoint.com/java-oops-concepts", resource: "Javatpoint" },
+                { desc: "Java OOP", type: "Article", link: "https://www.geeksforgeeks.org/java/object-oriented-programming-oops-concept-in-java/", resource: "Javatpoint" },
                 { desc: "Create your own Student class", type: "Practice", link: "#", resource: "Self-Study" },
             ]},
             { day: 10, title: "OOP 2 | Packages, Static, Singleton", note: "", tasks: [ // Day 10
@@ -318,11 +331,11 @@
                 { desc: "Inheritance", type: "Article", link: "https://www.w3schools.com/java/java_inheritance.asp", resource: "W3Schools" },
                 { desc: "Polymorphism", type: "Article", link: "https://www.w3schools.com/java/java_polymorphism.asp", resource: "W3Schools" },
                 { desc: "Encapsulation", type: "Article", link: "https://www.w3schools.com/java/java_encapsulation.asp", resource: "W3Schools" },
-                { desc: "Abstraction", type: "Article", link: "https://www.javatpoint.com/abstraction-in-java", resource: "Javatpoint" },
+                { desc: "Abstraction", type: "Article", link: "https://www.geeksforgeeks.org/java/abstraction-in-java-2/", resource: "GFG" },
             ]},
             { day: 12, title: "OOP 4 | Access Control, In-built Packages", note: "", tasks: [ // Day 12
                 { desc: "OOP 4 | Access Control, In-built Packages, Object Class", type: "Video", link: "https://www.youtube.com/watch?v=W145DXs8fFg&list=PL9gnSGHSqcnr_DxHsP7AW9ftq0AtAyYqJ&index=40&pp=iAQB", resource: "YouTube" },
-                { desc: "Access modifiers", type: "Article", link: "https://www.javatpoint.com/access-modifiers", resource: "Javatpoint" },
+                { desc: "Access modifiers", type: "Article", link: "https://www.geeksforgeeks.org/java/access-modifiers-java/", resource: "GFG" },
             ]},
             { day: 13, title: "OOP 5 | Abstract Classes, Interfaces", note: "", tasks: [ // Day 13
                 { desc: "OOP 5 | Abstract Classes, Interfaces, Annotations", type: "Video", link: "https://www.youtube.com/watch?v=rgHZa7-Dibg&list=PL9gnSGHSqcnr_DxHsP7AW9ftq0AtAyYqJ&index=41&pp=iAQB", resource: "YouTube" },
@@ -335,7 +348,7 @@
             ]},
             { day: 15, title: "OOP 7 | Collections Framework", note: "", tasks: [ // Day 15
                 { desc: "OOP 7 | Collections Framework, Vector Class, Enums in Java", type: "Video", link: "https://www.youtube.com/watch?v=9ogGan-R1pc&list=PL9gnSGHSqcnr_DxHsP7AW9ftq0AtAyYqJ&index=43&pp=iAQB", resource: "YouTube" },
-                { desc: "Collections", type: "Article", link: "https://www.javatpoint.com/collections-in-java", resource: "Javatpoint" },
+                { desc: "Collections", type: "Article", link: "https://www.geeksforgeeks.org/java/java-collection-tutorial/", resource: "GFG" },
                 { desc: "Contains Duplicate", type: "Easy Problem", link: "https://leetcode.com/problems/contains-duplicate/", resource: "LeetCode" },
                 { desc: "Two Sum", type: "Easy Problem", link: "https://leetcode.com/problems/two-sum/", resource: "LeetCode" },
             ]},
@@ -352,13 +365,13 @@
             { day: 18, title: "Binary Search Interview Questions", note: "", tasks: [ // Day 18
                 { desc: "Binary Search Interview Questions (Part 1)", type: "Video", link: "https://www.youtube.com/watch?v=W9QJ8HaRvJQ&list=PL9gnSGHSqcnr_DxHsP7AW9ftq0AtAyYqJ&index=15&pp=iAQB", resource: "YouTube" },
                 { desc: "Binary Search Interview Questions (Part 2)", type: "Video", link: "https://www.youtube.com/watch?v=W9QJ8HaRvJQ&list=PL9gnSGHSqcnr_DxHsP7AW9ftq0AtAyYqJ&index=15&pp=iAQB", resource: "YouTube" },
-                { desc: "Peak Element", type: "Article", link: "https://www.geeksforgeeks.org/find-peak-element/", resource: "GFG" },
+                { desc: "Peak Element", type: "Article", link: "https://www.geeksforgeeks.org/dsa/find-a-peak-in-a-given-array/", resource: "GFG" },
                 { desc: "Find Peak Element", type: "Medium Problem", link: "https://leetcode.com/problems/find-peak-element/", resource: "LeetCode" },
                 { desc: "Search in Rotated Sorted Array", type: "Medium Problem", link: "https://leetcode.com/problems/search-in-rotated-sorted-array/", resource: "LeetCode" },
             ]},
             { day: 19, title: "Binary Search in 2D Arrays", note: "", tasks: [ // Day 19
                 { desc: "Binary Search in 2D Arrays", type: "Video", link: "https://www.youtube.com/watch?v=enI_KyGLYPo&list=PL9gnSGHSqcnr_DxHsP7AW9ftq0AtAyYqJ&index=16&pp=iAQB", resource: "YouTube" },
-                { desc: "Search in a row-wise and column-wise sorted 2D array", type: "Article", link: "https://www.geeksforgeeks.org/search-in-a-row-wise-and-column-wise-sorted-2d-array/", resource: "GFG" },
+                { desc: "Search in a row-wise and column-wise sorted 2D array", type: "Article", link: "https://www.geeksforgeeks.org/dsa/search-in-row-wise-and-column-wise-sorted-matrix/", resource: "GFG" },
                 { desc: "Search a 2D Matrix", type: "Medium Problem", link: "https://leetcode.com/problems/search-a-2d-matrix/", resource: "LeetCode" },
             ]},
             { day: 20, title: "Bubble Sort Algorithm", note: "", tasks: [ // Day 20
@@ -385,7 +398,7 @@
             { day: 24, title: "Time and Space Complexity", note: "", tasks: [ // Day 24
                 { desc: "Time and Space Complexity COMPLETE Tutorial (Part 1)", type: "Video", link: "https://www.youtube.com/watch?v=mV3wrLBbuuE&list=PLCqQcm5h1gNmTFK1xJ9PPxsmLImyG2M3H&index=24&pp=gAQBiAQB", resource: "YouTube" },
                 { desc: "Time and Space Complexity (Part 2)", type: "Video", link: "https://www.youtube.com/watch?v=mV3wrLBbuuE&list=PLCqQcm5h1gNmTFK1xJ9PPxsmLImyG2M3H&index=24&pp=gAQBiAQB", resource: "YouTube" },
-                { desc: "Analysis of Algorithms | Big-O Analysis", type: "Article", link: "https://www.geeksforgeeks.org/analysis-of-algorithms-big-o-analysis/", resource: "GFG" },
+                { desc: "Analysis of Algorithms | Big-O Analysis", type: "Article", link: "https://www.geeksforgeeks.org/dsa/analysis-algorithms-big-o-analysis/", resource: "GFG" },
                 { desc: "Calculate Big-O of nested loops", type: "Practice", link: "#", resource: "Self-Study" },
             ]},
             { day: 25, title: "Bitwise Operators + Number Systems", note: "", tasks: [ // Day 25
@@ -397,7 +410,7 @@
             ]},
             { day: 26, title: "Maths for Data Structures & Algorithms", note: "", tasks: [
                 { desc: "Maths for Data Structures & Algorithms", type: "Video", link: "https://www.youtube.com/watch?v=F6T3tD8Pw40&list=PL9gnSGHSqcnr_DxHsP7AW9ftq0AtAyYqJ&index=26&pp=iAQB", resource: "YouTube" },
-                { desc: "Maths for CP", type: "Article", link: "https://www.geeksforgeeks.org/mathematics-for-competitive-programming/", resource: "GFG" },
+                { desc: "Maths for CP", type: "Article", link: "https://www.geeksforgeeks.org/dsa/math-in-competitive-programming/", resource: "GFG" },
                 { desc: "Count Primes", type: "Easy Problem", link: "https://leetcode.com/problems/count-primes/", resource: "LeetCode" },
                 { desc: "Power of Two", type: "Easy Problem", link: "https://leetcode.com/problems/power-of-two/", resource: "LeetCode" },
             ]},
@@ -413,16 +426,16 @@
             ]},
             { day: 29, title: "Recursion Level 1", note: "", tasks: [
                 { desc: "Recursion - Level 1 Questions (Theory + Code + Tips)", type: "Video", link: "https://www.youtube.com/watch?v=ngCos392W4w&pp=iAQB", resource: "YouTube" },
-                { desc: "Stack frames", type: "Article", link: "https://www.javatpoint.com/recursion-in-java", resource: "Javatpoint" },
+                { desc: "Stack frames", type: "Article", link: "https://www.geeksforgeeks.org/computer-organization-architecture/stack-frame-in-computer-organization/", resource: "GFG" },
                 { desc: "Sum of digits / reverse number", type: "Practice", link: "#", resource: "Self-Study" },
             ]},
             { day: 30, title: "Recursion - Array Questions", note: "", tasks: [
                 { desc: "Recursion - Array Questions (Theory + Code + Tips)", type: "Video", link: "https://www.youtube.com/watch?v=YJ9M0L6o9jg&pp=iAQB", resource: "YouTube" },
-                { desc: "Recursion on arrays", type: "Article", link: "https://www.geeksforgeeks.org/recursion-in-array/", resource: "GFG" },
+                { desc: "Recursion on arrays", type: "Article", link: "https://www.geeksforgeeks.org/dsa/sum-array-elements-using-recursion/", resource: "GFG" },
                 { desc: "Check Sorted", type: "Easy Problem", link: "https://leetcode.com/problems/check-if-array-is-sorted-and-rotated/", resource: "LeetCode" },
             ]},
             { day: 31, title: "Recursive Patterns + Sorting", note: "", tasks: [
-                { desc: "Recursion - Pattern Questions + Bubble Sort + Selection Sort", type: "Video", link: "https://www.youtube.com/watch?v=zgP6360wxgI&pp=iAQB", resource: "YouTube" },
+                { desc: "Recursion - Pattern Questions + Bubble Sort + Selection Sort", type: "Video", link: "https://www.youtube.com/watch?v=ymgnIIclCF0&list=PLCqQcm5h1gNmTFK1xJ9PPxsmLImyG2M3H&index=31&pp=gAQBiAQB", resource: "YouTube" },
                 { desc: "Recursive sorting basics", type: "Article", link: "https://www.geeksforgeeks.org/recursive-bubble-sort/", resource: "GFG" },
             ]},
             { day: 32, title: "Merge Sort Using Recursion", note: "", tasks: [
@@ -435,7 +448,7 @@
                 { desc: "Quick Sort", type: "Article", link: "https://www.geeksforgeeks.org/quick-sort/", resource: "GFG" },
             ]},
             { day: 34, title: "Subsets / Subsequence / Strings", note: "", tasks: [
-                { desc: "Recursion Subset, Subsequence, String Questions", type: "Video", link: "https://www.youtube.com/watch?v=zgPXwS8YvA8&pp=iAQB", resource: "YouTube" },
+                { desc: "Recursion Subset, Subsequence, String Questions", type: "Video", link: "https://www.youtube.com/watch?v=gdifkIwCJyg&list=PLCqQcm5h1gNmTFK1xJ9PPxsmLImyG2M3H&index=34&pp=gAQBiAQB", resource: "YouTube" },
                 { desc: "Power set", type: "Article", link: "https://www.geeksforgeeks.org/power-set/", resource: "GFG" },
                 { desc: "Subsets", type: "Medium Problem", link: "https://leetcode.com/problems/subsets/", resource: "LeetCode" },
             ]},
@@ -445,8 +458,8 @@
                 { desc: "Permutations", type: "Medium Problem", link: "https://leetcode.com/problems/permutations/", resource: "LeetCode" },
             ]},
             { day: 36, title: "Backtracking + Maze", note: "", tasks: [
-                { desc: "Backtracking Introduction + Maze Problems - Theory + Code + Tips", type: "Video", link: "https://www.youtube.com/watch?v=zgPXwS8YvA8&pp=iAQB", resource: "YouTube" },
-                { desc: "Backtracking explanation", type: "Article", link: "https://www.geeksforgeeks.org/backtracking-algorithm/", resource: "GFG" },
+                { desc: "Backtracking Introduction + Maze Problems - Theory + Code + Tips", type: "Video", link: "https://www.youtube.com/watch?v=zg5v2rlV1tM&list=PLCqQcm5h1gNmTFK1xJ9PPxsmLImyG2M3H&index=36&pp=gAQBiAQB", resource: "YouTube" },
+                { desc: "Backtracking explanation", type: "Article", link: "https://www.youtube.com/watch?v=zg5v2rlV1tM&list=PLCqQcm5h1gNmTFK1xJ9PPxsmLImyG2M3H&index=36&pp=gAQBiAQB", resource: "GFG" },
                 { desc: "Word Search", type: "Medium Problem", link: "https://leetcode.com/problems/word-search/", resource: "LeetCode" },
             ]},
             { day: 37, title: "Dice Throw + Letter Combinations", note: "", tasks: [
@@ -471,36 +484,36 @@
                 { desc: "Merge Sorted Array", type: "Easy Problem", link: "https://leetcode.com/problems/merge-sorted-array/", resource: "LeetCode" },
             ]},
             { day: 41, title: "Maths for DSA (Revision)", note: "", tasks: [
-                { desc: "Maths for Data Structures & Algorithms (revise part)", type: "Video", link: "#", resource: "YouTube" },
+                { desc: "Maths for Data Structures & Algorithms (revise part)", type: "Video", link: "https://www.youtube.com/watch?v=lmSpZ0bjCyQ&list=PLCqQcm5h1gNmTFK1xJ9PPxsmLImyG2M3H&index=26&pp=gAQBiAQB", resource: "YouTube" },
                 { desc: "Happy Number", type: "Easy Problem", link: "https://leetcode.com/problems/happy-number/", resource: "LeetCode" },
             ]},
             { day: 42, title: "Recursion — Patterns + Sorting Revision", note: "", tasks: [
-                { desc: "Recursion — Patterns + Sorting Revision", type: "Video", link: "#", resource: "YouTube" },
+                { desc: "Recursion — Patterns + Sorting Revision", type: "Video", link: "https://www.youtube.com/watch?v=ymgnIIclCF0&list=PLCqQcm5h1gNmTFK1xJ9PPxsmLImyG2M3H&index=31&pp=gAQBiAQB", resource: "YouTube" },
                 { desc: "Print patterns recursively", type: "Practice", link: "#", resource: "Self-Study" },
             ]},
             { day: 43, title: "Quick Revision of All Recursion Fundamentals", note: "", tasks: [
-                { desc: "Quick Revision of All Recursion Fundamentals", type: "Video", link: "#", resource: "YouTube" },
+                { desc: "Quick Revision of All Recursion Fundamentals", type: "Video", link: "https://www.youtube.com/watch?v=M2uO2nMT0Bk&list=PLCqQcm5h1gNmTFK1xJ9PPxsmLImyG2M3H&index=28&pp=gAQBiAQB", resource: "YouTube" },
                 { desc: "Pow(x, n)", type: "Medium Problem", link: "https://leetcode.com/problems/powx-n/", resource: "LeetCode" },
             ]},
             { day: 44, title: "Subset + Subsequence Hard Practice", note: "", tasks: [
-                { desc: "Subset + Subsequence Hard Practice", type: "Video", link: "#", resource: "YouTube" },
+                { desc: "Subset + Subsequence Hard Practice", type: "Video", link: "https://www.youtube.com/watch?v=gdifkIwCJyg&list=PLCqQcm5h1gNmTFK1xJ9PPxsmLImyG2M3H&index=34&pp=gAQBiAQB", resource: "YouTube" },
                 { desc: "Combination Sum II", type: "Medium Problem", link: "https://leetcode.com/problems/combination-sum-ii/", resource: "LeetCode" },
                 { desc: "Permutation Sequence", type: "Hard Problem", link: "https://leetcode.com/problems/permutation-sequence/", resource: "LeetCode" },
             ]},
             { day: 45, title: "Backtracking Revision: Maze / Strings", note: "", tasks: [
-                { desc: "Backtracking Revision: Maze / Strings", type: "Video", link: "#", resource: "YouTube" },
+                { desc: "Backtracking Revision: Maze / Strings", type: "Video", link: "https://www.youtube.com/watch?v=zg5v2rlV1tM&list=PLCqQcm5h1gNmTFK1xJ9PPxsmLImyG2M3H&index=36&pp=gAQBiAQB", resource: "YouTube" },
                 { desc: "Generate Parentheses", type: "Medium Problem", link: "https://leetcode.com/problems/generate-parentheses/", resource: "LeetCode" },
             ]},
             { day: 46, title: "Merge Sort + Quick Sort Deep Revision", note: "", tasks: [
-                { desc: "Merge Sort + Quick Sort Deep Revision", type: "Video", link: "#", resource: "YouTube" },
+                { desc: "Merge Sort + Quick Sort Deep Revision", type: "Video", link: "https://www.youtube.com/watch?v=unxAnJBy12Q&pp=ygUhbWVyZ2Ugc29ydCBhbmQgcXVpY2sgc29ydCBpbiBqYXZh", resource: "YouTube" },
                 { desc: "Kth Largest Element in an Array", type: "Medium Problem", link: "https://leetcode.com/problems/kth-largest-element-in-an-array/", resource: "LeetCode" },
             ]},
             { day: 47, title: "Subsets / Permutations Final Revision", note: "", tasks: [
-                { desc: "Subsets / Permutations Final Revision", type: "Video", link: "#", resource: "YouTube" },
+                { desc: "Subsets / Permutations Final Revision", type: "Video", link: "https://www.youtube.com/watch?v=gDGw0cvFXPQ&list=PLCqQcm5h1gNmTFK1xJ9PPxsmLImyG2M3H&index=35&pp=gAQBiAQB", resource: "YouTube" },
                 { desc: "Subsets III (custom variations)", type: "Practice", link: "#", resource: "Self-Study" },
             ]},
             { day: 48, title: "All Backtracking Combined", note: "", tasks: [
-                { desc: "All Backtracking Combined", type: "Video", link: "#", resource: "YouTube" },
+                { desc: "All Backtracking Combined", type: "Video", link: "https://www.youtube.com/watch?v=zg5v2rlV1tM&list=PLCqQcm5h1gNmTFK1xJ9PPxsmLImyG2M3H&index=36&pp=gAQBiAQB", resource: "YouTube" },
                 { desc: "Letter Case Permutation", type: "Medium Problem", link: "https://leetcode.com/problems/letter-case-permutation/", resource: "LeetCode" },
             ]},
             { day: 49, title: "MOCK TEST 1", note: "", tasks: [
@@ -516,7 +529,7 @@
             ]},
             { day: 51, title: "Linked List Tutorial", note: "", tasks: [
                 { desc: "Linked List Tutorial - Singly + Doubly + Circular (Theory + Code + Implementation)", type: "Video", link: "https://www.youtube.com/watch?v=58YbpRDc4yw&pp=iAQB", resource: "YouTube" },
-                { desc: "Linked List basics", type: "Article", link: "https://www.geeksforgeeks.org/data-structures-linked-list/", resource: "GFG" },
+                { desc: "Linked List basics", type: "Article", link: "https://www.geeksforgeeks.org/dsa/linked-list-data-structure/", resource: "GFG" },
                 { desc: "Reverse Linked List", type: "Easy Problem", link: "https://leetcode.com/problems/reverse-linked-list/", resource: "LeetCode" },
                 { desc: "Middle of the Linked List", type: "Easy Problem", link: "https://leetcode.com/problems/middle-of-the-linked-list/", resource: "LeetCode" },
             ]},
@@ -537,7 +550,7 @@
             ]},
             { day: 55, title: "Linked List Interview Qs (Part 4)", note: "", tasks: [
                 { desc: "Linked List Interview Questions (Part 4)", type: "Video", link: "https://www.youtube.com/watch?v=70tx7KcMROc&pp=iAQB", resource: "YouTube" },
-                { desc: "Reorder Linked List", type: "Article", link: "https://www.geeksforgeeks.org/reorder-list/", resource: "GFG" },
+                { desc: "Reorder Linked List", type: "Article", link: "https://www.geeksforgeeks.org/problems/reorder-list/1", resource: "GFG" },
                 { desc: "Reorder List", type: "Medium Problem", link: "https://leetcode.com/problems/reorder-list/", resource: "LeetCode" },
             ]},
             { day: 56, title: "Linked List Consolidation Day", note: "", tasks: [
@@ -553,7 +566,7 @@
             { day: 58, title: "Stacks and Queues Interview Questions", note: "", tasks: [
                 { desc: "Stacks and Queues Interview Questions (Part 1)", type: "Video", link: "https://www.youtube.com/watch?v=S9LUYztYLu4&pp=iAQB", resource: "YouTube" },
                 { desc: "Stacks and Queues Interview Questions (Part 2)", type: "Video", link: "https://www.youtube.com/watch?v=S9LUYztYLu4&pp=iAQB", resource: "YouTube" },
-                { desc: "Monotonic Stack", type: "Article", link: "https://www.geeksforgeeks.org/monotonic-stack/", resource: "GFG" },
+                { desc: "Monotonic Stack", type: "Article", link: "https://www.youtube.com/watch?v=ymgnIIclCF0&list=PLCqQcm5h1gNmTFK1xJ9PPxsmLImyG2M3H&index=31&pp=gAQBiAQB", resource: "GFG" },
                 { desc: "Min Stack", type: "Easy Problem", link: "https://leetcode.com/problems/min-stack/", resource: "LeetCode" },
             ]},
             { day: 59, title: "Stack/Queue Deep Practice", note: "", tasks: [
@@ -643,17 +656,17 @@
             ]},
             { day: 78, title: "Mo's Algorithm", note: "", tasks: [
                 { desc: "Easily Solve Range Query Problems with Mo's Algorithm", type: "Video", link: "https://www.youtube.com/watch?v=U4YmISZViSs&pp=iAQB", resource: "YouTube" },
-                { desc: "Mo’s Algorithm", type: "Article", link: "https://www.geeksforgeeks.org/mos-algorithm-query-square-root-decomposition-technique/", resource: "GFG" },
+                { desc: "Mo’s Algorithm", type: "Article", link: "https://www.geeksforgeeks.org/dsa/mos-algorithm-query-square-root-decomposition-set-1-introduction/", resource: "GFG" },
                 { desc: "Offline query problems", type: "Practice", link: "#", resource: "Self-Study" },
             ]},
             { day: 79, title: "Binary Tree from Preorder & Inorder Traversal", note: "", tasks: [
                 { desc: "Binary Tree from Preorder & Inorder Traversal - Advance Tree Questions", type: "Video", link: "https://www.youtube.com/watch?v=LFGBTFxHJII&pp=iAQB", resource: "YouTube" },
-                { desc: "Construct BT from inorder + preorder", type: "Article", link: "https://www.geeksforgeeks.org/construct-tree-from-preorder-and-inorder-traversals/", resource: "GFG" },
+                { desc: "Construct BT from inorder + preorder", type: "Article", link: "https://www.geeksforgeeks.org/dsa/construct-tree-from-given-inorder-and-preorder-traversal/", resource: "GFG" },
                 { desc: "Construct BT from Preorder + Inorder", type: "Medium Problem", link: "https://leetcode.com/problems/construct-binary-tree-from-preorder-and-inorder-traversal/", resource: "LeetCode" },
             ]},
             { day: 80, title: "Vertical Order Traversal of a Binary Tree", note: "", tasks: [
                 { desc: "Vertical Order Traversal of a Binary Tree - Google Interview Question", type: "Video", link: "https://www.youtube.com/watch?v=Qdr3ohMSxBo&pp=iAQB", resource: "YouTube" },
-                { desc: "Vertical Order Traversal", type: "Article", link: "https://www.geeksforgeeks.org/vertical-order-traversal-of-binary-tree/", resource: "GFG" },
+                { desc: "Vertical Order Traversal", type: "Article", link: "https://www.geeksforgeeks.org/dsa/vertical-order-traversal-of-binary-tree-using-map/", resource: "GFG" },
                 { desc: "Vertical Order Traversal", type: "Hard Problem", link: "https://leetcode.com/problems/vertical-order-traversal-of-a-binary-tree/", resource: "LeetCode" },
             ]},
             { day: 81, title: "Word Ladder", note: "", tasks: [
@@ -668,12 +681,12 @@
             ]},
             { day: 83, title: "Kth Smallest Element in a BST", note: "", tasks: [
                 { desc: "Kth Smallest Element in a BST - Google, Amazon, Facebook Interview Question", type: "Video", link: "https://www.youtube.com/watch?v=guzgnCSafg4&pp=iAQB", resource: "YouTube" },
-                { desc: "BST inorder = sorted", type: "Article", link: "https://www.geeksforgeeks.org/kth-smallest-element-in-bst/", resource: "GFG" },
+                { desc: "BST inorder = sorted", type: "Article", link: "https://www.geeksforgeeks.org/dsa/inorder-traversal-of-binary-tree/", resource: "GFG" },
                 { desc: "Kth Smallest Element", type: "Medium Problem", link: "https://leetcode.com/problems/kth-smallest-element-in-a-bst/", resource: "LeetCode" },
             ]},
             { day: 84, title: "Convert Binary Tree to Doubly Linked List", note: "", tasks: [
                 { desc: "Convert Binary Tree to Doubly Linked List - FAANG Interview Question", type: "Video", link: "https://www.youtube.com/watch?v=kNZ5VIkqReU&pp=iAQB", resource: "YouTube" },
-                { desc: "BT to DLL conversion", type: "Article", link: "https://www.geeksforgeeks.org/convert-binary-tree-to-doubly-linked-list/", resource: "GFG" },
+                { desc: "BT to DLL conversion", type: "Article", link: "https://www.geeksforgeeks.org/problems/binary-tree-to-dll/1", resource: "GFG" },
                 { desc: "Flatten Binary Tree", type: "Medium Problem", link: "https://leetcode.com/problems/flatten-binary-tree-to-linked-list/", resource: "LeetCode" },
             ]},
             { day: 85, title: "Correct Binary Tree That Has Two Nodes Swapped", note: "", tasks: [
@@ -1618,6 +1631,53 @@
         window.hideResetModal = function() {
             document.getElementById('reset-modal').classList.add('hidden');
         }
+
+        // PWA Install prompt handling
+        let deferredInstallPrompt = null;
+
+        function showInstallButton(show) {
+            const btn = document.getElementById('install-btn');
+            if (!btn) return;
+            if (show) {
+                btn.classList.remove('hidden');
+                btn.setAttribute('aria-hidden', 'false');
+            } else {
+                btn.classList.add('hidden');
+                btn.setAttribute('aria-hidden', 'true');
+            }
+        }
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent the mini-infobar from appearing on mobile
+            e.preventDefault();
+            deferredInstallPrompt = e;
+            showInstallButton(true);
+        });
+
+        window.addEventListener('appinstalled', () => {
+            // Clear the saved prompt and hide button
+            deferredInstallPrompt = null;
+            showInstallButton(false);
+            console.log('PWA installed');
+        });
+
+        window.promptInstall = async function() {
+            if (!deferredInstallPrompt) return;
+            const btn = document.getElementById('install-btn');
+            try {
+                if (btn) btn.disabled = true;
+                await deferredInstallPrompt.prompt();
+                const choiceResult = await deferredInstallPrompt.userChoice;
+                if (choiceResult && choiceResult.outcome === 'accepted') {
+                    showInstallButton(false);
+                }
+            } catch (err) {
+                console.error('Install prompt failed', err);
+            } finally {
+                if (btn) btn.disabled = false;
+                deferredInstallPrompt = null;
+            }
+        };
 
         // Start the application
         window.onload = function() {
